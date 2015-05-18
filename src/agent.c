@@ -10,30 +10,26 @@
 
 #include "pipe.h"
 
+#define map_size 80
+#define world_size map_size*2
+
 int   pipe_fd;
 FILE* in_stream;
 FILE* out_stream;
 
 char view[5][5];
+char world[world_size][world_size];
 
 char get_action( char view[5][5] ) {
 
-  // REPLACE THIS CODE WITH AI TO CHOOSE ACTION
-
-  int ch=0;
-
-  printf("Enter Action(s): ");
-
-  while(( ch = getchar()) != -1 ) { // read character from keyboard
-
-    switch( ch  ) { // if character is a valid action, return it
-    case 'F': case 'L': case 'R': case 'C': case 'B':
-    case 'f': case 'l': case 'r': case 'c': case 'b':
-      return((char) ch);
+    if (view[1][2] == '~' || view[1][2] == '*'|| view[1][2] == 'T'){
+        return((char) 'r');
     }
-  }
-  return 0;
+    else{
+        return((char) 'f');
+    }
 }
+
 
 void print_view()
 {
