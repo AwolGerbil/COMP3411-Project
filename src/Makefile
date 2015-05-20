@@ -1,9 +1,9 @@
 # Makefile
 
-CC = gcc
+CC = g++
 CFLAGS = -Wall -O3
 
-CSRC = agent.c pipe.c
+CSRC = agent.cpp pipe.cpp
 HSRC = pipe.h
 OBJ = $(CSRC:.c=.o)
 

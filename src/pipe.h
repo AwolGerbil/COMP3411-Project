@@ -5,4 +5,5 @@
  *  UNSW Session 1, 2012
 */
 
-int tcpopen(char *host, int port);
+//int tcpopen(char *host, int port);
+int tcpopen(int port);
