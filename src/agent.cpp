@@ -18,7 +18,64 @@ int   pipe_fd;
 FILE* in_stream;
 FILE* out_stream;
 
-char view[5][5];
+void transpose(char (&tran)[5][5]) {
+	int i, j;
+	char swap;
+	for (i = 1; i < 5; ++i) {
+		for (j = 0; j < i; ++j) {
+			swap = tran[i][j];
+			tran[i][j] = tran[j][i];
+			tran[j][i] = swap;
+		}
+	}
+}
+
+void reverseRows(char (&rev)[5][5]) {
+	int i, start, end;
+	char swap;
+	for (i = 0; i < 5; ++i) {
+		start = 0;
+		end = 4;
+		while (start < end) {
+			swap = rev[i][start];
+			rev[i][start] = rev[i][end];
+			rev[i][end] = swap;
+			++start;
+			--end;
+		}
+	}
+}
+
+void reverseCols(char (&rev)[5][5]) {
+	int i, start, end;
+	char swap;
+	for (i = 0; i < 5; ++i) {
+		start = 0;
+		end = 4;
+		while (start < end) {
+			swap = rev[start][i];
+			rev[start][i] = rev[end][i];
+			rev[end][i] = swap;
+			++start;
+			--end;
+		}
+	}
+}
+
+void rotateCW(char (&rot)[5][5]) {
+	transpose(rot);
+	reverseRows(rot);
+}
+
+void rotateCCW(char (&rot)[5][5]) {
+	transpose(rot);
+	reverseCols(rot);
+}
+
+void rotate180(char (&rot)[5][5]) {
+	reverseCols(rot);
+	reverseRows(rot);
+}
 
 class World {
 	int posX, posY; // cartesian coordinates
@@ -28,9 +85,11 @@ public:
 	char map[world_size][world_size];
 	
 	World();
-	void updateMap(char view[5][5]);
+	void updateMap(char (&view)[5][5]);
 	void move(char command);
 	void print();
+	
+	char getFront();
 	
 	int getPositionX() { return posX; }
 	int getPositionY() { return posY; }
@@ -55,7 +114,7 @@ World::World() {
 	}
 }
 
-void World::updateMap(char view[5][5]) {
+void World::updateMap(char (&view)[5][5]) {
 	// Update seen area
 	seenXMin = posX - 2 < seenXMin ? posX - 2 : seenXMin;
 	seenXMax = posX + 2 > seenXMax ? posX + 2 : seenXMax;
@@ -65,6 +124,15 @@ void World::updateMap(char view[5][5]) {
 	// Offset for array
 	int x = posX + 78;
 	int y = posY + 82;
+	
+	// Rotate view to correct orientation
+	if (direction == 1) {
+		rotateCW(view);
+	} else if (direction == 2) {
+		rotate180(view);
+	} else if (direction == 3) {
+		rotateCCW(view);
+	}
 	
 	// Update map
 	for (int i = 0; i < 5; ++i) {
@@ -127,106 +195,33 @@ void World::print() {
 	printf("\n");
 }
 
-char world[world_size][world_size];
-char lastMove;
-int posX;
-int posY;
-int heading;
-
-void transpose(char (&tran)[5][5]) {
-	int i, j;
-	char swap;
-	for (i = 1; i < 5; ++i) {
-		for (j = 0; j < i; ++j) {
-			swap = tran[i][j];
-			tran[i][j] = tran[j][i];
-			tran[j][i] = swap;
-		}
+char World::getFront() {
+	if (direction == 0) {
+		return map[posX + 80][posY + 81];
+	} else if (direction == 1) {
+		return map[posX + 81][posY + 80];
+	} else if (direction == 2) {
+		return map[posX + 80][posY + 79];
+	} else {
+		return map[posX + 79][posY + 80];
 	}
 }
 
-void reverseRows(char (&rev)[5][5]) {
-	int i, start, end;
-	char swap;
-	for (i = 0; i < 5; ++i) {
-		start = 0;
-		end = 4;
-		while (start < end) {
-			swap = rev[i][start];
-			rev[i][start] = rev[i][end];
-			rev[i][end] = swap;
-			++start;
-			--end;
-		}
-	}
-}
-
-void reverseCols(char (&rev)[5][5]) {
-	int i, start, end;
-	char swap;
-	for (i = 0; i < 5; ++i) {
-		start = 0;
-		end = 4;
-		while (start < end) {
-			swap = rev[start][i];
-			rev[start][i] = rev[end][i];
-			rev[end][i] = swap;
-			++start;
-			--end;
-		}
-	}
-}
-
-void rotateCW(char (&rot)[5][5]) {
-	transpose(rot);
-	reverseRows(rot);
-}
-
-void rotateCCW(char (&rot)[5][5]) {
-	transpose(rot);
-	reverseCols(rot);
-}
-
-void rotate180(char (&rot)[5][5]) {
-	reverseCols(rot);
-	reverseRows(rot);
-}
-
-char getAction(char view[5][5], World &world) {
-	char copy[5][5];
-	memcpy(copy, view, sizeof (char) * 5 * 5);
-	switch (heading) {
-		case 1:
-			rotateCW(copy);
-			copy[2][2] = '>';
-			break;
-		case 2:
-			rotate180(copy);
-			copy[2][2] = 'v';
-			break;
-		case 3:
-			rotateCCW(copy);
-			copy[2][2] = '<';
-			break;
-		default:
-			copy[2][2] = '^';
-			break;
-	}
-	
-	world.updateMap(copy);
+char getAction(World &world) {
 	world.print();
 	printf("%d %d", world.getPositionX(), world.getPositionY());
 	
-	if (view[1][2] == '~' || view[1][2] == '*'|| view[1][2] == 'T') {
-		lastMove = 'r';
-		heading = (heading + 1)%4;
+	char front = world.getFront();
+	char move;
+	if (front == 'T' || front == '*' || front == '~') {
+		move = 'r';
 	} else {
-		lastMove = 'f';
+		move = 'f';
 	}
 	
 	getchar();
-	world.move(lastMove);
-	return lastMove;
+	world.move(move);
+	return move;
 }
 
 int main(int argc, char *argv[]) {
@@ -234,11 +229,7 @@ int main(int argc, char *argv[]) {
 	int sd;
 	int ch;
 	int i, j;
-	lastMove = '?';
-	World w1 = World();
-	posX = map_size;
-	posY = map_size;
-	heading = 2;
+	World world = World();
 	
 	if (argc < 3) {
 		printf("Usage: %s -p port\n", argv[0] );
@@ -252,12 +243,7 @@ int main(int argc, char *argv[]) {
 	in_stream  = fdopen(sd,"r");
 	out_stream = fdopen(sd,"w");
 	
-	for (i = 0; i < world_size; ++i) {
-		for (j = 0; j < world_size; ++j) {
-			world[i][j] = '?';
-		}
-	}
-	
+	char view[5][5];
 	while (1) {
 		// scan 5-by-5 wintow around current location
 		for (i = 0; i < 5; ++i) {
@@ -268,11 +254,15 @@ int main(int argc, char *argv[]) {
 						exit(1);
 					}
 					view[i][j] = ch;
+				} else {
+					view[i][j] = '^';
 				}
 			}
 		}
 		
-		action = getAction(view, w1);
+		world.updateMap(view);
+		
+		action = getAction(world);
 		putc(action, out_stream);
 		fflush(out_stream);
 	}
