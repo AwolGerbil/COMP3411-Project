@@ -108,10 +108,18 @@ void World::print() {
 	int arrayYMin = seenYMin + 80;
 	int arrayYMax = seenYMax + 80;
 	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
+	printf("\n");
 	for (int j = arrayYMax; j >= arrayYMin; --j) {
 		putchar('?');
 		for (int i = arrayXMin; i <= arrayXMax; ++i) {
-			putchar(map[i][j]);
+			if (i == posX + 80 && j == posY + 80) {
+				if (direction == 0) { putchar('^'); }
+				else if (direction == 1) { putchar('>'); }
+				else if (direction == 2) { putchar('v'); }
+				else { putchar('<'); }
+			} else {
+				putchar(map[i][j]);
+			}
 		}
 		printf("?\n");
 	}
@@ -184,36 +192,6 @@ void rotate180(char (&rot)[5][5]) {
 	reverseRows(rot);
 }
 
-void print_view(char (&dis)[5][5]) {
-	int i, j;
-	
-	printf("\n+-----+\n");
-	for (i = 0; i < 5; i++) {
-		putchar('|');
-		for (j = 0; j < 5; j++) {
-			putchar(dis[i][j]);
-		}
-		printf("|\n");
-	}
-	printf("+-----+\n");
-}
-
-void print_map() {
-	int i, j;
-	
-	for (i = 0; i < world_size; i++) {
-		putchar('|');
-		for (j = 0; j < world_size; j++) {
-			if ((i == posX) && (j == posY)) {
-				putchar('X');
-			} else {
-				putchar(world[i][j]);
-			}
-		}
-		printf("|\n");
-	}
-}
-
 char getAction(char view[5][5], World &world) {
 	char copy[5][5];
 	memcpy(copy, view, sizeof (char) * 5 * 5);
@@ -235,7 +213,6 @@ char getAction(char view[5][5], World &world) {
 			break;
 	}
 	
-	print_view(copy);
 	world.updateMap(copy);
 	world.print();
 	printf("%d %d", world.getPositionX(), world.getPositionY());
