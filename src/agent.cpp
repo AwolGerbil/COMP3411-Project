@@ -20,20 +20,28 @@ FILE* out_stream;
 
 char view[5][5];
 
-class Map {
-	int posX, posY;
-	int seenXMin, seenXMax, seenYMin, seenYMax;
+class World {
+	int posX, posY; // cartesian coordinates
+	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
+	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 public:
-	char world[world_size][world_size];
+	char map[world_size][world_size];
 	
-	Map();
-	void updateMap(int x, int y, char view[5][5]);
+	World();
+	void updateMap(char view[5][5]);
+	void move(char command);
 	void print();
+	
+	int getPositionX() { return posX; }
+	int getPositionY() { return posY; }
+	int getVisibleWidth() { return seenXMax - seenXMin; }
+	int getVisibleHeight() { return seenYMax - seenYMin; }
 };
 
-Map::Map() {
-	posX = 0;
+World::World() {
+	posX = 0; // starts at (0, 0)
 	posY = 0;
+	direction = 2; // starts facing south
 	
 	seenXMin = 0;
 	seenXMax = 0;
@@ -42,46 +50,73 @@ Map::Map() {
 	
 	for (int i = 0; i < world_size; ++i) {
 		for (int j = 0; j < world_size; ++j) {
-			world[i][j] = '?';
+			map[i][j] = '?';
 		}
 	}
 }
 
-void Map::updateMap(int x, int y, char view[5][5]) {
+void World::updateMap(char view[5][5]) {
 	// Update seen area
-	seenXMin = x - 2 < seenXMin ? x - 2 : seenXMin;
-	seenXMax = x + 2 > seenXMax ? x + 2 : seenXMax;
-	seenYMin = y - 2 < seenYMin ? y - 2 : seenYMin;
-	seenYMax = y + 2 > seenYMax ? y + 2 : seenYMax;
+	seenXMin = posX - 2 < seenXMin ? posX - 2 : seenXMin;
+	seenXMax = posX + 2 > seenXMax ? posX + 2 : seenXMax;
+	seenYMin = posY - 2 < seenYMin ? posY - 2 : seenYMin;
+	seenYMax = posY + 2 > seenYMax ? posY + 2 : seenYMax;
 	
 	// Offset for array
-	x += 78;
-	y += 78; 
+	int x = posX + 78;
+	int y = posY + 82;
 	
 	// Update map
 	for (int i = 0; i < 5; ++i) {
 		for (int j = 0; j < 5; ++j) {
-			world[x + i][y + j] = view[i][j];
+			map[x + j][y - i] = view[i][j];
 		}
 	}
 	
-	// world ignores player
+	// world map ignores player
 	// TODO: needs account for boat
-	world[x + 2][y + 2] = ' ';
+	map[posX + 80][posY + 80] = ' ';
 }
 
-void Map::print() {
+void World::move(char command) {
+	if (command == 'F' || command == 'f') { // Step forward
+		if (direction == 0) {
+			++posY;
+		} else if (direction == 1) {
+			++posX;
+		} else if (direction == 2) {
+			--posY;
+		} else {
+			--posX;
+		}
+	} else if (command == 'L' || command == 'l') { // Turn left
+		direction = (direction + 3) % 4;
+	} else if (command == 'R' || command == 'r') { // Turn right
+		direction = (direction + 1) % 4;
+	} else if (command == 'C' || command == 'c') { // Chop
+		// TODO
+	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
+		// TODO
+	} else {
+		printf("Y U DO DIS?");
+	}
+}
+
+void World::print() {
 	int arrayXMin = seenXMin + 80;
 	int arrayXMax = seenXMax + 80;
 	int arrayYMin = seenYMin + 80;
 	int arrayYMax = seenYMax + 80;
-	
-	for (int i = arrayYMin; i <= arrayYMax; ++i) {
-		for (int j = arrayXMin; j <= arrayXMax; ++j) {
-			putchar(world[i][j]);
+	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
+	for (int j = arrayYMax; j >= arrayYMin; --j) {
+		putchar('?');
+		for (int i = arrayXMin; i <= arrayXMax; ++i) {
+			putchar(map[i][j]);
 		}
-		printf("\n");
+		printf("?\n");
 	}
+	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
+	printf("\n");
 }
 
 char world[world_size][world_size];
@@ -179,7 +214,7 @@ void print_map() {
 	}
 }
 
-char get_action(char view[5][5]) {
+char getAction(char view[5][5], World &world) {
 	char copy[5][5];
 	memcpy(copy, view, sizeof (char) * 5 * 5);
 	switch (heading) {
@@ -201,7 +236,9 @@ char get_action(char view[5][5]) {
 	}
 	
 	print_view(copy);
-	print_map();
+	world.updateMap(copy);
+	world.print();
+	printf("%d %d", world.getPositionX(), world.getPositionY());
 	
 	if (view[1][2] == '~' || view[1][2] == '*'|| view[1][2] == 'T') {
 		lastMove = 'r';
@@ -210,8 +247,8 @@ char get_action(char view[5][5]) {
 		lastMove = 'f';
 	}
 	
-	usleep(500000);
-	
+	getchar();
+	world.move(lastMove);
 	return lastMove;
 }
 
@@ -221,9 +258,10 @@ int main(int argc, char *argv[]) {
 	int ch;
 	int i, j;
 	lastMove = '?';
+	World w1 = World();
 	posX = map_size;
 	posY = map_size;
-	heading = 0;
+	heading = 2;
 	
 	if (argc < 3) {
 		printf("Usage: %s -p port\n", argv[0] );
@@ -257,7 +295,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		
-		action = get_action(view);
+		action = getAction(view, w1);
 		putc(action, out_stream);
 		fflush(out_stream);
 	}
