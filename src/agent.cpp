@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <unistd.h>
 
+#include <vector>
+
 #include "pipe.h"
 
 #define map_size 80
@@ -81,12 +83,15 @@ class World {
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
+	int aStarDestX, aStarDestY; // last aStar destination
+	std::vector<char> aStarCache; // for caching the shortest path to a given coordinate
 public:
 	char map[world_size][world_size];
 	
 	World();
 	void updateMap(char (&view)[5][5]);
 	void move(char command);
+	char aStar(int destX, int destY);
 	void print();
 	
 	char getFront();
@@ -135,6 +140,8 @@ void World::updateMap(char (&view)[5][5]) {
 	}
 	
 	// Update map
+	// view (matrix coordinates) top left to bottom right = (0, 0), (0, 1) ... (4, 3), (4, 4)
+	// map (cartesian coordinates) top left to bottom right = (-2, 2), (-1, 2) ... (1, -2), (2, -2)
 	for (int i = 0; i < 5; ++i) {
 		for (int j = 0; j < 5; ++j) {
 			map[x + j][y - i] = view[i][j];
@@ -168,6 +175,38 @@ void World::move(char command) {
 	} else {
 		printf("Y U DO DIS?");
 	}
+}
+
+class aStarNode {
+public:
+	int posX, posY, destX, destY;
+	std::vector<char> path;
+	
+	aStarNode(const int posX, const int posY, const int destX, const int destY, const std::vector<char> path) {
+		this->posX = posX;
+		this->posY = posY;
+		this->destX = destX;
+		this->destY = destY;
+		this->path = path;
+	}
+	
+	int estimate() const {
+		return (posX < destX ? (destX - posX) : (posX - destX)) // Change in x
+			+ (posY < destY ? (destY - posY) : (posY - destY)) // Change in y
+			+ (posX != destX && posY != destY ? 1 : 0 ); // Compulsory turn
+	}
+	
+	bool operator<(const aStarNode &other) {
+		return this->path.size() + this->estimate() < other.path.size() + other.estimate();
+	}
+};
+
+// Returns the optimal move given a destination
+// Does not consider picking up tools
+// If unpathable, returns 0
+char World::aStar(int destX, int destY) {
+	
+	return 0;
 }
 
 void World::print() {
@@ -245,7 +284,7 @@ int main(int argc, char *argv[]) {
 	
 	char view[5][5];
 	while (1) {
-		// scan 5-by-5 wintow around current location
+		// scan 5-by-5 window around current location
 		for (i = 0; i < 5; ++i) {
 			for (j = 0; j < 5; ++j) {
 				if ((i != 2) || (j != 2)) {
