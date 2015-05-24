@@ -173,13 +173,13 @@ void World::move(char command) {
 	} else if (command == 'R' || command == 'r') { // Turn right
 		direction = (direction + 1) % 4;
 	} else if (command == 'C' || command == 'c') { // Chop
-	        if(getFront() == 'T'){
-                    clearFront();
-                }
+		if(getFront() == 'T'){
+			clearFront();
+		}
 	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
-	        if(getFront() == 'T' || getFront() == '*'){
-                    clearFront();
-                }
+		if(getFront() == 'T' || getFront() == '*'){
+			clearFront();
+		}
 	} else {
 		printf("Y U DO DIS?");
 	}
