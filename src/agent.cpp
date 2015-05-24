@@ -1,7 +1,7 @@
 /*********************************************
  *  agent.cpp
  *  UNSW Session 1, 2015
- *  Gabriel Low & Yilser Kebabran
+ *  Gabriel Low & Yilser Kabaran
 */
 
 #include <string.h>
@@ -77,6 +77,9 @@ void rotate180(char (&rot)[5][5]) {
 	reverseRows(rot);
 }
 
+class Astar{
+}
+
 class World {
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
@@ -90,6 +93,7 @@ public:
 	void print();
 	
 	char getFront();
+        void clearFront();
 	
 	int getPositionX() { return posX; }
 	int getPositionY() { return posY; }
@@ -162,9 +166,13 @@ void World::move(char command) {
 	} else if (command == 'R' || command == 'r') { // Turn right
 		direction = (direction + 1) % 4;
 	} else if (command == 'C' || command == 'c') { // Chop
-		// TODO
+	        if(getFront() == 'T'){
+                    clearFront();
+                }
 	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
-		// TODO
+	        if(getFront() == 'T' || getFront() == '*'){
+                    clearFront();
+                }
 	} else {
 		printf("Y U DO DIS?");
 	}
@@ -207,6 +215,18 @@ char World::getFront() {
 	}
 }
 
+void World::clearFront() {
+	if (direction == 0) {
+		map[posX + 80][posY + 81] = ' ';
+	} else if (direction == 1) {
+		map[posX + 81][posY + 80] = ' ';
+	} else if (direction == 2) {
+		map[posX + 80][posY + 79] = ' ';
+	} else {
+		map[posX + 79][posY + 80] = ' ';
+	}
+}
+
 char getAction(World &world) {
 	world.print();
 	printf("%d %d", world.getPositionX(), world.getPositionY());
@@ -218,7 +238,6 @@ char getAction(World &world) {
 	} else {
 		move = 'f';
 	}
-	
 	getchar();
 	world.move(move);
 	return move;
@@ -259,13 +278,11 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
-		
 		world.updateMap(view);
 		
 		action = getAction(world);
 		putc(action, out_stream);
 		fflush(out_stream);
 	}
-	
 	return 0;
 }
