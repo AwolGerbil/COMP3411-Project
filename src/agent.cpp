@@ -95,7 +95,7 @@ public:
 	void print();
 	
 	char getFront();
-        void clearFront();
+    void clearFront();
 	
 	int getPositionX() { return posX; }
 	int getPositionY() { return posY; }
@@ -261,40 +261,6 @@ void World::clearFront() {
 	} else {
 		map[posX + 79][posY + 80] = ' ';
 	}
-}
-
-class State{
-private:
-	int x;
-	int y;
-	int cost;
-	int est;
-	int dyna_count;
-	bool axe;
-	bool gold;
-	bool boat;
-public:
-	State(int x_, int y_, int cost_, int est_, int dyna_count, bool axe_, bool gold_, bool boat_);
-	int getTotalCost(){ return cost+est; };
-	int getX(){ return x; };
-	int getY(){ return y; };
-	int getCost(){ return cost; };
-	int getEst(){ return est; };
-	int getDynaCount(){ return dyna_count; };
-	bool haveAxe(){ return axe; };
-	bool haveGold(){ return gold; };
-	bool haveBoat(){ return boat; };
-};
-
-State::State(int x_, int y_, int cost_, int est_, int dyna_count_, bool axe_, bool gold_, bool boat_){
-	x = x_;
-	y = y_;
-	cost = cost_;
-	est = est_;
-	dyna_count = dyna_count_;
-	axe = axe_;
-	gold = gold_;
-	boat = boat_;
 }
 
 char getAction(World &world) {
