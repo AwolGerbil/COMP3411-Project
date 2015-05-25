@@ -200,26 +200,18 @@ public:
 	}
 	
 	aStarNode(const aStarNode &old, const World &world, const char move) {
+		posX = old.posX;
+		posY = old.posY;
+		direction = old.direction;
 		if (move == 'F' || move == 'f') {
-			posX = old.posX + world.forwardX[direction];
-			posY = old.posY + world.forwardY[direction];
-			if (world.getMap(posX, posY) != ' ') {
-				posX = old.posX;
-				posY = old.posY;
+			if (world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]) == ' ') {
+				posX += world.forwardX[direction];
+				posY += world.forwardY[direction];
 			}
-			direction = old.direction;
 		} else if (move == 'L' || move == 'l') {
-			posX = old.posX;
-			posY = old.posY;
-			direction = (old.direction + 3) % 4;
+			direction = (direction + 3) % 4;
 		} else if (move == 'R' || move == 'r') {
-			posX = old.posX;
-			posY = old.posY;
-			direction = (old.direction + 1) % 4;
-		} else {
-			posX = old.posX;
-			posY = old.posY;
-			direction = old.direction;
+			direction = (direction + 1) % 4;
 		}
 		
 		destX = old.destX;
