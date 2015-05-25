@@ -96,6 +96,7 @@ public:
 	void updateMap(char (&view)[5][5]);
 	void move(char command);
 	char aStar(int destX, int destY);
+	char explore();
 	void print() const;
 	
 	char getFront() const;
@@ -311,6 +312,108 @@ char World::aStar(int destX, int destY) {
 	return 0;
 };
 
+class ExpNode{
+public:
+	int posX, posY;
+	World* world;
+
+	ExpNode(const int posX, const int posY, World* world){
+		this->posX = posX;
+		this->posY = posY;
+		this->world = world;
+	}
+	
+	int surrounds() const {
+		int count = 0;
+		for(int i = posX-2; i <= posX+2; i++){
+			for(int j = posY-2; j <= posY+2; j++){
+				if (world->getMap(i,j) == '?'){
+					count++;
+				}
+			}
+		}
+		return count;
+	}
+	
+	bool operator==(const ExpNode &other) const {
+		return (posX == other.posX && posY == other.posY);
+	}
+	
+	bool operator<(const ExpNode &other) const {
+		return surrounds() < other.surrounds();
+	}
+	
+	bool operator>(const ExpNode &other) const {
+		return surrounds() > other.surrounds();
+	}
+
+};
+
+char World::explore(){
+	std::vector<ExpNode> closedSet;
+	std::priority_queue<ExpNode> closedQueue;
+	std::priority_queue<ExpNode> open;
+	std::priority_queue<ExpNode> temp;
+
+	ExpNode current(posX, posY,this);
+	open.push(current);
+	
+	while (!open.empty()){
+		if(closedQueue.size() > 1){
+			ExpNode old = closedQueue.top();
+			closedQueue.pop();
+			//biggest one
+			if (old > closedQueue.top()){
+				printf("found\n");
+				return aStar(old.posX, old.posY);
+			}
+			closedQueue.push(old);
+		}
+
+		printf("looking deeper\n");
+		while (!open.empty()){
+			current = open.top();
+			open.pop();
+			printf("val: %d\n", current.surrounds());
+			closedQueue.push(current);
+			closedSet.push_back(current);
+			for(int i = 0; i < 4; i++){
+				int x = current.posX + forwardX[i];
+				int y = current.posY + forwardY[i];
+				if(getMap(x,y) != ' '){
+					continue;
+				}
+				ExpNode nextNode(x,y,this);
+				bool found = false;
+				for (std::vector<ExpNode>::iterator iter = closedSet.begin(); iter != closedSet.end(); ++iter) {
+					if (nextNode == *iter) {
+						found = true;
+						break;
+					}
+				}
+				
+				if (!found) temp.push(nextNode);
+
+			}
+		}
+		while(!temp.empty()){
+			open.push(temp.top());
+			temp.pop();
+		}
+	}
+	
+	printf("no major\n");
+	current = closedQueue.top();
+	if(current.surrounds() > 0){
+		printf("backup\n");
+		return aStar(current.posX, current.posY);
+	}
+	else{
+		printf("give up\n");
+		return 0;
+	}
+}
+
 void World::print() const {
 	int arrayXMin = seenXMin + 80;
 	int arrayXMax = seenXMax + 80;
@@ -366,18 +469,23 @@ char getAction(World &world) {
 	
 	// Plan:
 	// If gold can be accessed by walking/boat, then access it and return gold
+	// TODO
 	// Otherwise, explore via walking/boat, chop trees if possible
+	//char move = world.explore();
+	char move = world.aStar(-1,0);
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
+	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
+	// TODO
 	// Repeat from top
-	
-	char front = world.getFront();
+/*	
 	char move;
 	if (front == 'T' || front == '*' || front == '~') {
 		move = 'r';
 	} else {
 		move = 'f';
 	}
+	*/
 	getchar();
 	world.move(move);
 	return move;
