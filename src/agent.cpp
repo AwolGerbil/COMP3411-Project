@@ -364,6 +364,13 @@ char getAction(World &world) {
 	world.print();
 	printf("%d %d", world.getPositionX(), world.getPositionY());
 	
+	// Plan:
+	// If gold can be accessed by walking/boat, then access it and return gold
+	// Otherwise, explore via walking/boat, chop trees if possible
+	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
+	// Attempt to use bombs to access gold/tools in most cost effective manner
+	// Repeat from top
+	
 	char front = world.getFront();
 	char move;
 	if (front == 'T' || front == '*' || front == '~') {
