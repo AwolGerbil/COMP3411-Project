@@ -117,7 +117,7 @@ public:
 	void move(char command);
 	char aStar(int destX, int destY);
 	char explore();
-	char findGold();
+	char findTile(char target);
 	void print() const;
 	
 	char getFront() const;
@@ -131,6 +131,7 @@ public:
 	char getMap(int x, int y) const { return map[x + 80][y + 80]; }
 
 	bool getGold() { return inventory.getGold(); }
+	bool getAxe() { return inventory.getAxe(); }
 };
 
 const int World::forwardX[4] = {0, 1, 0, -1};
@@ -298,7 +299,7 @@ char World::aStar(int destX, int destY) {
 		return move;
 	}
 	
-	if (getMap(destX, destY) == 'T' && getMap(destX, destY) == '*') {
+	if (getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
 		return 0;
 	}
 	
@@ -401,8 +402,16 @@ char World::explore(){
 		for(int i = 0; i < 4; i++){
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
-			if(getMap(x,y) != ' '){
-				continue;
+			switch (getMap(x,y)){
+				case '~':
+					if (getMap(posX,posY) == '~'){
+						break;
+					}
+				case 'T':
+				case '*':
+					continue;	
+				default:
+					break;
 			}
 			ExpNode nextNode(x,y,this);
 			bool found = false;
@@ -419,11 +428,10 @@ char World::explore(){
 	return 0;
 }
 
-char World::findGold(){
+char World::findTile(char target){
 	for(int i = seenXMin; i <= seenXMax; i++){
 		for(int j = seenYMin; j <= seenYMax; j++){
-			if(getMap(i,j) == 'g'){
-				printf("foundit!\n");
+			if(getMap(i,j) == target){
 				return aStar(i,j);
 			}
 		}
@@ -495,7 +503,15 @@ char getAction(World &world) {
 	else{
 		move = world.explore();
 		if (move == 0){
-			move = world.findGold();
+			move = world.findTile('g');
+		}
+		if (move == 0){
+			if(world.getAxe()){
+				move = world.findTile('T');
+			}
+			else {
+				move = world.findTile('a');
+			}
 		}
 	}
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
