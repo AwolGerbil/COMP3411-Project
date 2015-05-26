@@ -205,7 +205,9 @@ public:
 		posY = old.posY;
 		direction = old.direction;
 		if (move == 'F' || move == 'f') {
-			if (world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]) == ' ') {
+			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
+			if (front == ' ' || front == 'g' || front == 'b'
+				|| (front == '~' && (world.getMap(posX, posY) == 'b' || world.getMap(posX, posY) == '~'))) {
 				posX += world.forwardX[direction];
 				posY += world.forwardY[direction];
 			}
