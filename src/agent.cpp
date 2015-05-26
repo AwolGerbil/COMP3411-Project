@@ -81,7 +81,27 @@ void rotate180(char (&rot)[5][5]) {
 	reverseRows(rot);
 }
 
+class Inventory{
+	bool axe, gold;
+	int kaboomCount;
+public:
+	Inventory();
+	bool getAxe(){return axe;}
+	bool getGold(){return gold;}
+	int getKaboomCount(){return kaboomCount;}
+	void setGold(bool gold){this->gold = gold;}
+	void setAxe(bool axe){this->axe = axe;}
+	void setKaboomCount(bool count){this->kaboomCount = count;}
+};
+
+Inventory::Inventory(){
+	axe = false;
+	gold = false;
+	kaboomCount = 0;
+}
+
 class World {
+	Inventory inventory;
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
@@ -109,12 +129,15 @@ public:
 	int getVisibleHeight() const { return seenYMax - seenYMin; }
 	
 	char getMap(int x, int y) const { return map[x + 80][y + 80]; }
+
+	bool getGold() { return inventory.getGold(); }
 };
 
 const int World::forwardX[4] = {0, 1, 0, -1};
 const int World::forwardY[4] = {1, 0, -1, 0};
 
 World::World() {
+	inventory = Inventory();
 	posX = 0; // starts at (0, 0)
 	posY = 0;
 	direction = 2; // starts facing south
@@ -167,6 +190,22 @@ void World::updateMap(char (&view)[5][5]) {
 
 void World::move(char command) {
 	if (command == 'F' || command == 'f') { // Step forward
+		switch(getFront()){
+			case 'a':{
+				inventory.setAxe(true);
+				break;
+				}
+			case 'd':{
+				int count = inventory.getKaboomCount();
+				count++;
+				inventory.setKaboomCount(count);
+				break;
+				}
+			case 'g':{
+				inventory.setGold(true);
+				break;
+				}
+		}
 		posX = posX + forwardX[direction];
 		posY = posY + forwardY[direction];
 	} else if (command == 'L' || command == 'l') { // Turn left
@@ -449,23 +488,21 @@ char getAction(World &world) {
 	// If gold can be accessed by walking/boat, then access it and return gold
 	// TODO
 	// Otherwise, explore via walking/boat, chop trees if possible
-	char move = world.explore();
-	if (move == 0){
-		move = world.findGold();
+	char move = 0;
+	if(world.getGold()){
+		move = world.aStar(0,0);
+	}
+	else{
+		move = world.explore();
+		if (move == 0){
+			move = world.findGold();
+		}
 	}
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
 	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
 	// TODO
 	// Repeat from top
-/*	
-	char move;
-	if (front == 'T' || front == '*' || front == '~') {
-		move = 'r';
-	} else {
-		move = 'f';
-	}
-	*/
 	getchar();
 	world.move(move);
 	return move;
