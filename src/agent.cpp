@@ -245,8 +245,8 @@ public:
 		direction = old.direction;
 		if (move == 'F' || move == 'f') {
 			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
-			if (front == ' ' || front == 'g' || front == 'b'
-				|| (front == '~' && (world.getMap(posX, posY) == 'b' || world.getMap(posX, posY) == '~'))) {
+			if (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
+				|| (front == '~' && (world.getMap(posX, posY) == 'B' || world.getMap(posX, posY) == '~'))) {
 				posX += world.forwardX[direction];
 				posY += world.forwardY[direction];
 			}
@@ -298,7 +298,7 @@ char World::aStar(int destX, int destY) {
 		return move;
 	}
 	
-	if (getMap(destX, destY) != ' ' && getMap(destX, destY) != 'g') {
+	if (getMap(destX, destY) == 'T' && getMap(destX, destY) == '*') {
 		return 0;
 	}
 	
