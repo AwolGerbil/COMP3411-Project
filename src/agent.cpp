@@ -86,12 +86,13 @@ class Inventory{
 	int kaboomCount;
 public:
 	Inventory();
-	bool getAxe(){return axe;}
-	bool getGold(){return gold;}
-	int getKaboomCount(){return kaboomCount;}
-	void setGold(bool gold){this->gold = gold;}
-	void setAxe(bool axe){this->axe = axe;}
-	void setKaboomCount(bool count){this->kaboomCount = count;}
+	bool getAxe() const { return axe; }
+	bool getGold() const { return gold; }
+	int getKaboomCount() const { return kaboomCount; }
+	void setAxe(bool axe) { this->axe = axe; }
+	void setGold(bool gold) { this->gold = gold; }
+	void addKaboom() { ++kaboomCount; }
+	void useKaboom() { --kaboomCount; }
 };
 
 Inventory::Inventory(){
@@ -104,11 +105,12 @@ class World {
 	Inventory inventory;
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
+	char map[world_size][world_size];
+	bool boat;
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 	int aStarDestX, aStarDestY; // last aStar destination
 	std::vector<char> aStarCache; // for caching the shortest path to a given coordinate
 public:
-	char map[world_size][world_size];
 	static const int forwardX[4];
 	static const int forwardY[4];
 	
@@ -129,9 +131,12 @@ public:
 	int getVisibleHeight() const { return seenYMax - seenYMin; }
 	
 	char getMap(int x, int y) const { return map[x + 80][y + 80]; }
-
-	bool getGold() { return inventory.getGold(); }
-	bool getAxe() { return inventory.getAxe(); }
+	
+	void setBoat(bool boat) { this->boat = boat; }
+	
+	bool hasGold() const { return inventory.getGold(); }
+	bool hasAxe() const { return inventory.getAxe(); }
+	bool onBoat() const { return boat; }
 };
 
 const int World::forwardX[4] = {0, 1, 0, -1};
@@ -185,27 +190,25 @@ void World::updateMap(char (&view)[5][5]) {
 	}
 	
 	// world map ignores player
-	// TODO: needs account for boat
-	map[posX + 80][posY + 80] = ' ';
+	if (onBoat()) {
+		map[posX + 80][posY + 80] = 'B';
+	} else {
+		map[posX + 80][posY + 80] = ' ';
+	}
 }
 
 void World::move(char command) {
 	if (command == 'F' || command == 'f') { // Step forward
-		switch(getFront()){
-			case 'a':{
-				inventory.setAxe(true);
-				break;
-				}
-			case 'd':{
-				int count = inventory.getKaboomCount();
-				count++;
-				inventory.setKaboomCount(count);
-				break;
-				}
-			case 'g':{
-				inventory.setGold(true);
-				break;
-				}
+		if (getFront() == 'a') {
+			inventory.setAxe(true);
+		} else if (getFront() == 'd') {
+			inventory.addKaboom();
+		} else if (getFront() == 'g') {
+			inventory.setGold(true);
+		} else if (getFront() == 'B') {
+			setBoat(true);
+		} else if (getFront() == ' ') {
+			setBoat(false);
 		}
 		posX = posX + forwardX[direction];
 		posY = posY + forwardY[direction];
@@ -361,9 +364,9 @@ public:
 	
 	int surrounds() const {
 		int count = 0;
-		for(int i = posX-2; i <= posX+2; i++){
-			for(int j = posY-2; j <= posY+2; j++){
-				if (world->getMap(i,j) == '?'){
+		for (int i = posX - 2; i <= posX + 2; ++i) {
+			for (int j = posY - 2; j <= posY + 2; ++j) {
+				if (world->getMap(i,j) == '?') {
 					count++;
 				}
 			}
@@ -409,13 +412,13 @@ char World::explore(){
 			printf("\ncan I get there? %d %d\n",current.posX,current.posY);
 			if (move != 0){
 				return move;
-			}
-			printf("no");
+			return aStar(current.posX, current.posY);
+>>>>>>> 2a4617e9f0b7f5cc31d871d44e4fc0f2bb10ef0f
 		}
 
 		open.pop();
 		closed.push_back(current);
-		for(int i = 0; i < 4; i++){
+		for (int i = 0; i < 4; i++) {
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
 			switch (getMap(x,y)){
@@ -442,11 +445,11 @@ char World::explore(){
 	return 0;
 }
 
-char World::findTile(char target){
-	for(int i = seenXMin; i <= seenXMax; i++){
-		for(int j = seenYMin; j <= seenYMax; j++){
-			if(getMap(i,j) == target){
-				return aStar(i,j);
+char World::findTile(char target) {
+	for (int i = seenXMin; i <= seenXMax; ++i) {
+		for (int j = seenYMin; j <= seenYMax; ++j) {
+			if (getMap(i,j) == target){
+				return aStar(i, j);
 			}
 		}
 	}
@@ -511,19 +514,17 @@ char getAction(World &world) {
 	// TODO
 	// Otherwise, explore via walking/boat, chop trees if possible
 	char move = 0;
-	if(world.getGold()){
+	if (world.hasGold()) {
 		move = world.aStar(0,0);
-	}
-	else{
+	} else{
 		move = world.explore();
-		if (move == 0){
+		if (move == 0) {
 			move = world.findTile('g');
 		}
-		if (move == 0){
-			if(world.getAxe()){
+		if (move == 0) {
+			if (world.hasAxe()) {
 				move = world.findTile('T');
-			}
-			else {
+			} else {
 				move = world.findTile('a');
 			}
 		}
