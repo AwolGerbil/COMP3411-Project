@@ -349,13 +349,14 @@ char World::aStar(int destX, int destY) {
 
 class ExpNode{
 public:
-	int posX, posY;
+	int posX, posY, moves;
 	World* world;
 
-	ExpNode(const int posX, const int posY, World* world){
+	ExpNode(const int posX, const int posY, World* world, const int moves){
 		this->posX = posX;
 		this->posY = posY;
 		this->world = world;
+		this->moves = moves;
 	}
 	
 	int surrounds() const {
@@ -375,26 +376,41 @@ public:
 	}
 	
 	bool operator<(const ExpNode &other) const {
-		return surrounds() < other.surrounds();
+		return moves < other.moves;
 	}
 	
 	bool operator>(const ExpNode &other) const {
-		return surrounds() > other.surrounds();
+		return moves > other.moves;
 	}
 
 };
 
 char World::explore(){
+	int destX ,destY = 0;
+	scanf("%d %d", &destX, &destY);
+	char move =  aStar(destX,destY);
+	while(move == 0){
+		printf("nop\n");
+		scanf("%d %d", &destX, &destY);
+		move =  aStar(destX,destY);
+	}
+	return move;
 	std::vector<ExpNode> closed;
 	std::priority_queue<ExpNode> open;
 
-	ExpNode current(posX, posY,this);
+	ExpNode current(posX, posY,this,0);
 	open.push(current);
-	
+	//directions of movement arraged so once added to the queue the ones with least turns required
+	//will be sorted closer to front if tied with others
 	while (!open.empty()){
 		current = open.top();
 		if (current.surrounds() > 0){
-			return aStar(current.posX, current.posY);
+			char move = aStar(current.posX, current.posY);
+			printf("\ncan I get there? %d %d\n",current.posX,current.posY);
+			if (move != 0){
+				return move;
+			}
+			printf("no");
 		}
 
 		open.pop();
@@ -403,17 +419,15 @@ char World::explore(){
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
 			switch (getMap(x,y)){
-				case '~':
-					if (getMap(posX,posY) == '~'){
-						break;
-					}
 				case 'T':
 				case '*':
+				case '?':
+				case '.':
 					continue;	
 				default:
 					break;
 			}
-			ExpNode nextNode(x,y,this);
+			ExpNode nextNode(x,y,this, current.moves+1);
 			bool found = false;
 			for (std::vector<ExpNode>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
 				if (nextNode == *iter) {
