@@ -119,11 +119,14 @@ public:
 	void move(char command);
 	char aStar(int destX, int destY);
 	char explore();
+	char findInterest();
+	char chopTrees();
 	char findTile(char target);
 	void print() const;
 	
 	char getFront() const;
 	void clearFront();
+	char getInDirection(int angle) const;
 	
 	int getPositionX() const { return posX; }
 	int getPositionY() const { return posY; }
@@ -300,9 +303,8 @@ char World::aStar(int destX, int destY) {
 		char move = aStarCache.back();
 		aStarCache.pop_back();
 		return move;
-	}
-	
-	if (getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
+	}	
+	if (getMap(destX, destY) == 'T' || getMap(destX, destY) == '*' || (getMap(destX, destY) == '~' && findTile('B') == 0)) {
 		return 0;
 	}
 	
@@ -355,11 +357,11 @@ public:
 	int posX, posY, moves;
 	World* world;
 
-	ExpNode(const int posX, const int posY, World* world, const int moves){
+	ExpNode(const int posX, const int posY, const int moves, World* world){
 		this->posX = posX;
 		this->posY = posY;
-		this->world = world;
 		this->moves = moves;
+		this->world = world;
 	}
 	
 	int surrounds() const {
@@ -389,19 +391,10 @@ public:
 };
 
 char World::explore(){
-	int destX ,destY = 0;
-	scanf("%d %d", &destX, &destY);
-	char move =  aStar(destX,destY);
-	while(move == 0){
-		printf("nop\n");
-		scanf("%d %d", &destX, &destY);
-		move =  aStar(destX,destY);
-	}
-	return move;
 	std::vector<ExpNode> closed;
-	std::priority_queue<ExpNode> open;
+	std::priority_queue<ExpNode, std::vector<ExpNode>, std::greater<ExpNode> > open;
 
-	ExpNode current(posX, posY,this,0);
+	ExpNode current(posX, posY, 0, this);
 	open.push(current);
 	//directions of movement arraged so once added to the queue the ones with least turns required
 	//will be sorted closer to front if tied with others
@@ -409,11 +402,10 @@ char World::explore(){
 		current = open.top();
 		if (current.surrounds() > 0){
 			char move = aStar(current.posX, current.posY);
-			printf("\ncan I get there? %d %d\n",current.posX,current.posY);
 			if (move != 0){
+				printf("explore: %d %d\n",current.posX,current.posY);
 				return move;
-			return aStar(current.posX, current.posY);
->>>>>>> 2a4617e9f0b7f5cc31d871d44e4fc0f2bb10ef0f
+			}
 		}
 
 		open.pop();
@@ -421,16 +413,10 @@ char World::explore(){
 		for (int i = 0; i < 4; i++) {
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
-			switch (getMap(x,y)){
-				case 'T':
-				case '*':
-				case '?':
-				case '.':
-					continue;	
-				default:
-					break;
+			if(getMap(x,y) != ' ' && getMap(x,y) != '~' && getMap(x,y) != 'B'){
+				continue;
 			}
-			ExpNode nextNode(x,y,this, current.moves+1);
+			ExpNode nextNode(x,y,current.moves+1,this);
 			bool found = false;
 			for (std::vector<ExpNode>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
 				if (nextNode == *iter) {
@@ -445,9 +431,49 @@ char World::explore(){
 	return 0;
 }
 
+char World::findInterest(){
+	char interests[3] = {'g','a','d'};
+	char move = 0;
+	for (int i = 0; i < 3 ; i++){
+		move = findTile(interests[i]);
+		if (move != 0){
+			return move;
+		}
+	}
+	return move;
+}
+
+char World::chopTrees(){
+	if(getInDirection(0) == 'T'){
+		return 'c';
+	}
+	else if(getInDirection(1) == 'T'){
+		return 'r';
+	}
+	else if(getInDirection(2) == 'T'){
+		return 'r';
+	}
+	else if(getInDirection(3) == 'T'){
+		return 'l';
+	}
+	for (int j = seenYMax; j >= seenYMin; --j) {
+		for (int i = seenXMin; i <= seenXMax; ++i) {
+			if (getMap(i,j) == 'T'){
+				for( int k = 0; k < 4; k++){
+					char move = aStar(posX+forwardX[k], posY+forwardY[k]);
+					if(move != 0){
+						return move;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 char World::findTile(char target) {
-	for (int i = seenXMin; i <= seenXMax; ++i) {
-		for (int j = seenYMin; j <= seenYMax; ++j) {
+	for (int j = seenYMax; j >= seenYMin; --j) {
+		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if (getMap(i,j) == target){
 				return aStar(i, j);
 			}
@@ -493,6 +519,18 @@ char World::getFront() const {
 	}
 }
 
+char World::getInDirection(int angle) const {
+	if (angle == 0) {
+		return map[posX + 80][posY + 81];
+	} else if (angle == 1) {
+		return map[posX + 81][posY + 80];
+	} else if (angle == 2) {
+		return map[posX + 80][posY + 79];
+	} else {
+		return map[posX + 79][posY + 80];
+	}
+}
+
 void World::clearFront() {
 	if (direction == 0) {
 		map[posX + 80][posY + 81] = ' ';
@@ -511,30 +549,29 @@ char getAction(World &world) {
 	
 	// Plan:
 	// If gold can be accessed by walking/boat, then access it and return gold
-	// TODO
 	// Otherwise, explore via walking/boat, chop trees if possible
 	char move = 0;
 	if (world.hasGold()) {
 		move = world.aStar(0,0);
-	} else{
+	}
+	if (move == 0) {
+		move = world.findInterest();
+	} 
+	if (move ==0){
 		move = world.explore();
-		if (move == 0) {
-			move = world.findTile('g');
-		}
-		if (move == 0) {
-			if (world.hasAxe()) {
-				move = world.findTile('T');
-			} else {
-				move = world.findTile('a');
-			}
+	}
+	if (move == 0) {
+		if (world.hasAxe()) {
+			move = world.chopTrees();
 		}
 	}
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
 	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
 	// TODO
-	// Repeat from top
-	getchar();
+	//getchar();
+	usleep(100);
+	printf("gonna: %c\n",move);
 	world.move(move);
 	return move;
 }
