@@ -141,7 +141,7 @@ public:
 	void flagAccessRecheck() {
 		for (int i = seenXMin + 80; i <= seenXMax + 80; ++i) {
 			for (int j = seenYMin + 80; j <= seenYMax + 80; ++j) {
-				if (access[i][j] == 0) access[i][j] = unknown;
+				if (access[i][j] == 0 && !(map[i][j] == '*' || map[i][j] == 'T')) access[i][j] = unknown;
 			}
 		}
 	}
@@ -381,6 +381,7 @@ char World::aStar(int destX, int destY) {
 		}
 	}
 	
+	setAccess(destX, destY, 0);
 	return 0;
 };
 
