@@ -17,7 +17,7 @@
 
 #define map_size 80
 #define world_size map_size * 2 - 1
-#define unknown 255
+#define unknown -1
 
 int   pipe_fd;
 FILE* in_stream;
@@ -163,6 +163,8 @@ World::World() {
 	posY = 0;
 	direction = 2; // starts facing south
 	
+	boat = false;
+	
 	seenXMin = 0;
 	seenXMax = 0;
 	seenYMin = 0;
@@ -222,10 +224,13 @@ void World::move(char command) {
 	if (command == 'F' || command == 'f') { // Step forward
 		if (getFront() == 'a') {
 			inventory.setAxe(true);
+			setBoat(false);
 		} else if (getFront() == 'd') {
 			inventory.addKaboom();
+			setBoat(false);
 		} else if (getFront() == 'g') {
 			inventory.setGold(true);
+			setBoat(false);
 		} else if (getFront() == 'B') {
 			setBoat(true);
 		} else if (getFront() == ' ') {
@@ -280,7 +285,7 @@ public:
 				posY += world.forwardY[direction];
 				world.setAccess(posX, posY, 1);
 			} else {
-				world.setAccess(posX, posY, 0);
+				world.setAccess(posX + world.forwardX[direction], posY + world.forwardY[direction], 0);
 			}
 		} else if (move == 'L' || move == 'l') {
 			direction = (direction + 3) % 4;
@@ -520,13 +525,26 @@ void World::print() const {
 		putchar('?');
 		for (int i = arrayXMin; i <= arrayXMax; ++i) {
 			if (i == posX + 80 && j == posY + 80) {
-				if (direction == 0) { putchar('^'); }
-				else if (direction == 1) { putchar('>'); }
-				else if (direction == 2) { putchar('v'); }
-				else { putchar('<'); }
+				if (direction == 0) putchar('^');
+				else if (direction == 1) putchar('>');
+				else if (direction == 2) putchar('v');
+				else putchar('<');
 			} else {
 				putchar(map[i][j]);
 			}
+		}
+		printf("?\n");
+	}
+	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
+	printf("\n");
+	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
+	printf("\n");
+	for (int j = arrayYMax; j >= arrayYMin; --j) {
+		putchar('?');
+		for (int i = arrayXMin; i <= arrayXMax; ++i) {
+			if (access[i][j] == unknown) putchar('u');
+			else if (access[i][j] == 0) putchar('0');
+			else if (access[i][j] == 1) putchar('1');
 		}
 		printf("?\n");
 	}
@@ -596,8 +614,8 @@ char getAction(World &world) {
 	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
 	// TODO
-	//getchar();
-	usleep(100);
+	getchar();
+	//usleep(100);
 	printf("gonna: %c\n",move);
 	world.move(move);
 	return move;
@@ -624,7 +642,6 @@ int main(int argc, char *argv[]) {
 	
 	char view[5][5];
 	while (1) {
-		printf("scan\n");
 		// scan 5-by-5 window around current location
 		for (i = 0; i < 5; ++i) {
 			for (j = 0; j < 5; ++j) {
