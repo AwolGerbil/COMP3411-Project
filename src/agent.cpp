@@ -446,7 +446,7 @@ char World::explore(){
 		for (int i = 0; i < 4; i++) {
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
-			if(getMap(x,y) == '*' || getMap(x,y) == 'T'){
+			if(getMap(x,y) == '*' || getMap(x,y) == 'T'|| getMap(x,y) == '.'|| getMap(x,y) == '?'){
 				continue;
 			}
 			ExpNode nextNode(x,y,current.moves+1,this);
@@ -566,15 +566,7 @@ char World::getFront() const {
 }
 
 char World::getInDirection(int angle) const {
-	if (angle == 0) {
-		return map[posX + 80][posY + 81];
-	} else if (angle == 1) {
-		return map[posX + 81][posY + 80];
-	} else if (angle == 2) {
-		return map[posX + 80][posY + 79];
-	} else {
-		return map[posX + 79][posY + 80];
-	}
+	return getMap(posX+forwardX[(direction+angle)%4], posY+forwardY[(direction+angle)%4]);
 }
 
 void World::clearFront() {
@@ -603,13 +595,13 @@ char getAction(World &world) {
 	if (move == 0) {
 		move = world.findInterest();
 	} 
-	if (move ==0){
-		move = world.explore();
-	}
 	if (move == 0) {
 		if (world.hasAxe()) {
 			move = world.chopTrees();
 		}
+	}
+	if (move == 0){
+		move = world.explore();
 	}
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
 	// TODO
