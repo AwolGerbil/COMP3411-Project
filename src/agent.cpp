@@ -139,8 +139,8 @@ public:
 	
 	void setAccess(int x, int y, char status) { access[x + 80][y + 80] = status; }
 	void flagAccessRecheck() {
-		for (int i = seenXMin + 80; i < seenXMax + 80; ++i) {
-			for (int j = seenYMin + 80; i < seenYMax + 80; ++j) {
+		for (int i = seenXMin + 80; i <= seenXMax + 80; ++i) {
+			for (int j = seenYMin + 80; j <= seenYMax + 80; ++j) {
 				if (access[i][j] == 0) access[i][j] = unknown;
 			}
 		}
@@ -199,14 +199,16 @@ void World::updateMap(char (&view)[5][5]) {
 	// Update map
 	// view (matrix coordinates) top left to bottom right = (0, 0), (0, 1) ... (4, 3), (4, 4)
 	// map (cartesian coordinates) top left to bottom right = (-2, 2), (-1, 2) ... (1, -2), (2, -2)
+	bool recheck = false;
 	for (int i = 0; i < 5; ++i) {
 		for (int j = 0; j < 5; ++j) {
-			if (i != 2 && j != 2 && map[x + j][y - i] != view[i][j]) {
-				flagAccessRecheck();
+			if (!(i == 2 && j == 2) && map[x + j][y - i] != view[i][j]) {
+				recheck = true;
 				map[x + j][y - i] = view[i][j];
 			}
 		}
 	}
+	if (recheck) flagAccessRecheck();
 	
 	// world map ignores player
 	if (onBoat()) {
@@ -269,8 +271,11 @@ public:
 		if (move == 'F' || move == 'f') {
 			char canAccess = world.getAccess(posX + world.forwardX[direction], posY + world.forwardY[direction]);
 			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
-			if (canAccess == 1 ||( canAccess == unknown && (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
-				|| (front == '~' && (world.getMap(posX, posY) == 'B' || world.getMap(posX, posY) == '~'))))) {
+			if (canAccess == 1
+				|| (canAccess == unknown
+					&& (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
+						|| (front == '~'
+							&& (world.getMap(posX, posY) == 'B' || world.getMap(posX, posY) == '~'))))) {
 				posX += world.forwardX[direction];
 				posY += world.forwardY[direction];
 				world.setAccess(posX, posY, 1);
@@ -619,6 +624,7 @@ int main(int argc, char *argv[]) {
 	
 	char view[5][5];
 	while (1) {
+		printf("scan\n");
 		// scan 5-by-5 window around current location
 		for (i = 0; i < 5; ++i) {
 			for (j = 0; j < 5; ++j) {
