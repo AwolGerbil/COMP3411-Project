@@ -17,6 +17,7 @@
 
 #define map_size 80
 #define world_size map_size * 2 - 1
+#define unknown 255
 
 int   pipe_fd;
 FILE* in_stream;
@@ -106,6 +107,7 @@ class World {
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
 	char map[world_size][world_size];
+	char access[world_size][world_size];
 	bool boat;
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 	int aStarDestX, aStarDestY; // last aStar destination
@@ -135,6 +137,16 @@ public:
 	
 	char getMap(int x, int y) const { return map[x + 80][y + 80]; }
 	
+	void setAccess(int x, int y, char status) { access[x + 80][y + 80] = status; }
+	void flagAccessRecheck() {
+		for (int i = seenXMin + 80; i < seenXMax + 80; ++i) {
+			for (int j = seenYMin + 80; i < seenYMax + 80; ++j) {
+				if (access[i][j] == 0) access[i][j] = unknown;
+			}
+		}
+	}
+	char getAccess(int x, int y) const { return access[x + 80][y + 80]; }
+	
 	void setBoat(bool boat) { this->boat = boat; }
 	
 	bool hasGold() const { return inventory.getGold(); }
@@ -159,6 +171,7 @@ World::World() {
 	for (int i = 0; i < world_size; ++i) {
 		for (int j = 0; j < world_size; ++j) {
 			map[i][j] = '?';
+			access[i][j] = unknown;
 		}
 	}
 }
@@ -188,7 +201,10 @@ void World::updateMap(char (&view)[5][5]) {
 	// map (cartesian coordinates) top left to bottom right = (-2, 2), (-1, 2) ... (1, -2), (2, -2)
 	for (int i = 0; i < 5; ++i) {
 		for (int j = 0; j < 5; ++j) {
-			map[x + j][y - i] = view[i][j];
+			if (i != 2 && j != 2 && map[x + j][y - i] != view[i][j]) {
+				flagAccessRecheck();
+				map[x + j][y - i] = view[i][j];
+			}
 		}
 	}
 	
@@ -246,16 +262,20 @@ public:
 		this->path = path;
 	}
 	
-	aStarNode(const aStarNode &old, const World &world, const char move) {
+	aStarNode(const aStarNode &old, World &world, const char move) {
 		posX = old.posX;
 		posY = old.posY;
 		direction = old.direction;
 		if (move == 'F' || move == 'f') {
+			char canAccess = world.getAccess(posX + world.forwardX[direction], posY + world.forwardY[direction]);
 			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
-			if (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
-				|| (front == '~' && (world.getMap(posX, posY) == 'B' || world.getMap(posX, posY) == '~'))) {
+			if (canAccess == 1 || canAccess == 255 && (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
+				|| (front == '~' && (world.getMap(posX, posY) == 'B' || world.getMap(posX, posY) == '~')))) {
 				posX += world.forwardX[direction];
 				posY += world.forwardY[direction];
+				world.setAccess(posX, posY, 1);
+			} else {
+				world.setAccess(posX, posY, 0);
 			}
 		} else if (move == 'L' || move == 'l') {
 			direction = (direction + 3) % 4;
@@ -303,8 +323,9 @@ char World::aStar(int destX, int destY) {
 		char move = aStarCache.back();
 		aStarCache.pop_back();
 		return move;
-	}	
-	if (getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
+	}
+		
+	if (getAccess(destX, dest) == 0 || getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
 		return 0;
 	}
 	
@@ -336,6 +357,7 @@ char World::aStar(int destX, int destY) {
 		char testMoves[3] = {'f', 'l', 'r'};
 		for (int i = 0; i < 3; ++i) {
 			aStarNode nextNode = aStarNode(current, *this, testMoves[i]);
+			
 			// Check if in closed set
 			bool found = false;
 			for (std::vector<aStarNode>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
