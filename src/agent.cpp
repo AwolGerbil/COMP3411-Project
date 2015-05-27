@@ -304,7 +304,7 @@ char World::aStar(int destX, int destY) {
 		aStarCache.pop_back();
 		return move;
 	}	
-	if (getMap(destX, destY) == 'T' || getMap(destX, destY) == '*' || (getMap(destX, destY) == '~' && findTile('B') == 0)) {
+	if (getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
 		return 0;
 	}
 	
@@ -413,7 +413,7 @@ char World::explore(){
 		for (int i = 0; i < 4; i++) {
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
-			if(getMap(x,y) != ' ' && getMap(x,y) != '~' && getMap(x,y) != 'B'){
+			if(getMap(x,y) != ' ' && (getMap(x,y) == '~' && (getMap(current.posX,current.posY) != '~' || getMap(current.posX,current.posY) != 'B')) && getMap(x,y) != 'B'){
 				continue;
 			}
 			ExpNode nextNode(x,y,current.moves+1,this);
