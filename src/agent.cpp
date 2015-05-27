@@ -329,6 +329,7 @@ public:
 // If unpathable, returns 0
 char World::aStar(int destX, int destY) {
 	// Use cached path if possible
+	printf("astar %d %d\n", destX, destY);
 	if (destX == aStarDestX && destY == aStarDestY) {
 		char move = aStarCache.back();
 		aStarCache.pop_back();
