@@ -446,7 +446,7 @@ char World::explore(){
 		for (int i = 0; i < 4; i++) {
 			int x = current.posX + forwardX[i];
 			int y = current.posY + forwardY[i];
-			if(getMap(x,y) != ' ' && (getMap(x,y) == '~' && (getMap(current.posX,current.posY) != '~' || getMap(current.posX,current.posY) != 'B')) && getMap(x,y) != 'B'){
+			if(getMap(x,y) == '*' || getMap(x,y) == 'T'){
 				continue;
 			}
 			ExpNode nextNode(x,y,current.moves+1,this);
