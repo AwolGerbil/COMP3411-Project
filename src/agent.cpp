@@ -275,12 +275,12 @@ public:
 		direction = old.direction;
 		if (move == 'F' || move == 'f') {
 			char canAccess = world.getAccess(posX + world.forwardX[direction], posY + world.forwardY[direction]);
+			char on = world.getMap(posX, posY);
 			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
-			if (canAccess == 1
+			if ((canAccess == 1 && !(front == '~' && on == ' '))
 				|| (canAccess == unknown
 					&& (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
-						|| (front == '~'
-							&& (world.getMap(posX, posY) == 'B' || world.getMap(posX, posY) == '~'))))) {
+						|| (front == '~' && on != ' ')))) {
 				posX += world.forwardX[direction];
 				posY += world.forwardY[direction];
 				world.setAccess(posX, posY, 1);
