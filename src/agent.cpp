@@ -118,6 +118,7 @@ public:
 	
 	World();
 	void updateMap(char (&view)[5][5]);
+	void evalAccess();
 	void move(char command);
 	char aStar(int destX, int destY);
 	char explore();
@@ -220,6 +221,37 @@ void World::updateMap(char (&view)[5][5]) {
 	}
 }
 
+struct Coord {
+	int x, y;
+
+	Coord(int x, int y) {
+		this->x = x;
+		this->y = y;
+	}
+	
+	bool operator==(const Coord &other) {
+		return (x == other.x && y == other.y);
+	}
+};
+
+void World::evalAccess() {
+	std::vector<Coord> closed;
+	std::vector<Coord> open;
+	
+	Coord current(posX + 80, posY + 80);
+	open.push_back(current);
+	
+	while (!open.empty()) {
+		current = open.back();
+		open.pop_back();
+		closed.push_back(current);
+		// TODO
+		for (int i = 0; i < 4; i++) {
+			open.push_back(Coord(current.x + forwardX[i], current.y + forwardY[i]));
+		}
+	}
+}
+
 void World::move(char command) {
 	if (command == 'F' || command == 'f') { // Step forward
 		if (getFront() == 'a') {
@@ -243,13 +275,8 @@ void World::move(char command) {
 	} else if (command == 'R' || command == 'r') { // Turn right
 		direction = (direction + 1) % 4;
 	} else if (command == 'C' || command == 'c') { // Chop
-		if (getFront() == 'T') {
-			clearFront();
-		}
 	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
-		if (getFront() == 'T' || getFront() == '*') {
-			clearFront();
-		}
+		inventory.useKaboom();
 	} else {
 		printf("Y U DO DIS?");
 	}
