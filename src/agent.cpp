@@ -124,6 +124,7 @@ public:
 	char explore();
 	char findInterest();
 	char chopTrees();
+	char bomb();
 	char findTile(char target);
 	void print() const;
 	
@@ -522,6 +523,17 @@ char World::chopTrees(){
 	return 0;
 }
 
+char World::bomb(){
+	for (int j = seenYMax; j >= seenYMin; --j) {
+		for (int i = seenXMin; i <= seenXMax; ++i) {
+			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i,j) == 1){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 char World::findTile(char target) {
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
@@ -618,7 +630,10 @@ char getAction(World &world) {
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
 	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
-	
+	if (move == 0){
+		move = world.bomb();
+		//BOOOOOOOOOOOOOOOOOMB
+	}
 	// TODO
 	getchar();
 	//usleep(100);
