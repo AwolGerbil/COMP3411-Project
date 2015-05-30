@@ -332,7 +332,11 @@ public:
 	aStarNode(const aStarNode &old, const World &world, const char move) {
 		posX = old.posX;
 		posY = old.posY;
-		direction = old.direction;
+		direction = old.direction;	
+		destX = old.destX;
+		destY = old.destY;
+		path = old.path;
+
 		if (move == 'F' || move == 'f') {
 			bool canAccess = world.canAccess(posX + world.forwardX[direction], posY + world.forwardY[direction], 0);
 			char on = world.getMap(posX, posY);
@@ -347,10 +351,6 @@ public:
 		} else if (move == 'R' || move == 'r') {
 			direction = (direction + 1) % 4;
 		}
-		
-		destX = old.destX;
-		destY = old.destY;
-		path = old.path;
 		path.push_back(move);
 	}
 	
@@ -392,7 +392,7 @@ char World::aStar(int destX, int destY) {
 		return move;
 	}
 		
-	if (!canAccess(destX, destY, 0) || getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
+	if (!canAccess(destX, destY, 0) || getMap(destX, destY) == '*') {
 		putchar('?');
 		return 0;
 	}
@@ -408,13 +408,17 @@ char World::aStar(int destX, int destY) {
 		// YAAAY!
 		if (current.estimate() == 0) {
 			// Update cache
+
+			for (std::vector<char>::iterator iter = current.path.begin(); iter != current.path.end(); ++iter) {
+				putchar(*iter);
+			}
 			aStarDestX = destX;
 			aStarDestY = destY;
 			char move = current.path.front();
 			std::reverse(current.path.begin(), current.path.end());
 			current.path.pop_back();
 			aStarCache = current.path;
-			putchar(move);
+			//putchar(move);
 			return move;
 		}
 		
@@ -470,11 +474,6 @@ char World::explore() {
 		for (int i = 0; i < 4; ++i) {
 			int newX = current.x + forwardX[i];
 			int newY = current.y + forwardY[i];
-			if (hasAxe() && getMap(newX, newY) == 'T') {
-				printf("end explore\n");
-				return aStar(current.x, current.y);
-			}
-			
 			if (!canAccess(newX, newY, 0)) continue;
 			
 			Coord nextNode(newX, newY);
@@ -613,17 +612,13 @@ char getAction(World &world) {
 	if (move == 0) {
 		move = world.findInterest();
 	}
-	if (move == 0) {
-		if (world.hasAxe()) {
-			move = world.chopTrees();
-		}
-	}
 	if (move == 0){
 		move = world.explore();
 	}
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
 	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
+	
 	// TODO
 	getchar();
 	//usleep(100);
