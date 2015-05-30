@@ -16,8 +16,7 @@
 #include "pipe.h"
 
 #define map_size 80
-#define world_size map_size * 2 - 1
-#define unknown -1
+#define world_size map_size * 2 - 1 + 3
 
 int   pipe_fd;
 FILE* in_stream;
@@ -107,7 +106,7 @@ class World {
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
 	char map[world_size][world_size];
-	char access[world_size][world_size];
+	char access[world_size][world_size]; // -1 = cannot access, x > 0 = can access with x # of bombs
 	bool boat;
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 	int aStarDestX, aStarDestY; // last aStar destination
@@ -115,6 +114,7 @@ class World {
 public:
 	static const int forwardX[4];
 	static const int forwardY[4];
+	static bool canWalk(char tile) { return (tile == ' ' || tile == 'a' || tile == 'd' || tile == 'B' || tile == 'g'); }
 	
 	World();
 	void updateMap(char (&view)[5][5]);
@@ -137,16 +137,17 @@ public:
 	int getVisibleHeight() const { return seenYMax - seenYMin; }
 	
 	char getMap(int x, int y) const { return map[x + 80][y + 80]; }
-	
-	void setAccess(int x, int y, char status) { access[x + 80][y + 80] = status; }
-	void flagAccessRecheck() {
-		for (int i = seenXMin + 80; i <= seenXMax + 80; ++i) {
-			for (int j = seenYMin + 80; j <= seenYMax + 80; ++j) {
-				if (access[i][j] == 0 && !(map[i][j] == '*' || map[i][j] == 'T')) access[i][j] = unknown;
+	bool canAccess(int x, int y, int kabooms) const { return access[x + 80][y + 80] != -1 && access[x + 80][y + 80] <= kabooms; }
+	bool isExplored(int x, int y) const {
+		for (int i = x + 78; i <= x + 82; ++i) {
+			for (int j = y + 78; j <= y + 82; ++j) {
+				if (map[i][j] == '?') {
+					return false;
+				}
 			}
 		}
+		return true;
 	}
-	char getAccess(int x, int y) const { return access[x + 80][y + 80]; }
 	
 	void setBoat(bool boat) { this->boat = boat; }
 	
@@ -162,7 +163,7 @@ World::World() {
 	inventory = Inventory();
 	posX = 0; // starts at (0, 0)
 	posY = 0;
-	direction = 2; // starts facing south
+	direction = 0; // starts facing north
 	
 	boat = false;
 	
@@ -174,7 +175,7 @@ World::World() {
 	for (int i = 0; i < world_size; ++i) {
 		for (int j = 0; j < world_size; ++j) {
 			map[i][j] = '?';
-			access[i][j] = unknown;
+			access[i][j] = -1;
 		}
 	}
 }
@@ -211,43 +212,75 @@ void World::updateMap(char (&view)[5][5]) {
 			}
 		}
 	}
-	if (recheck) flagAccessRecheck();
 	
 	// world map ignores player
 	if (onBoat()) {
 		map[posX + 80][posY + 80] = 'B';
 	} else {
+		if (map[posX + 80][posY + 80] != ' ') recheck = true;
 		map[posX + 80][posY + 80] = ' ';
 	}
+	
+	printf("update\n");
+	if (recheck) evalAccess();
 }
 
 struct Coord {
 	int x, y;
+	char kabooms;
 
-	Coord(int x, int y) {
+	Coord(int x, int y, int kabooms = 0) {
 		this->x = x;
 		this->y = y;
+		this->kabooms = kabooms;
 	}
 	
-	bool operator==(const Coord &other) {
+	bool operator==(const Coord &other) const {
 		return (x == other.x && y == other.y);
+	}
+	
+	bool operator<(const Coord &other) const {
+		return kabooms < other.kabooms;
+	}
+	
+	bool operator>(const Coord &other) const {
+		return kabooms > other.kabooms;
 	}
 };
 
 void World::evalAccess() {
 	std::vector<Coord> closed;
-	std::vector<Coord> open;
+	std::priority_queue<Coord, std::vector<Coord>, std::greater<Coord> > open;
 	
-	Coord current(posX + 80, posY + 80);
-	open.push_back(current);
+	Coord current(posX + 80, posY + 80, 0);
+	open.push(current);
 	
 	while (!open.empty()) {
-		current = open.back();
-		open.pop_back();
-		closed.push_back(current);
-		// TODO
+		current = open.top();
+		open.pop();
+		access[current.x][current.y] = current.kabooms;
+		
+		char currTile = map[current.x][current.y];
 		for (int i = 0; i < 4; i++) {
-			open.push_back(Coord(current.x + forwardX[i], current.y + forwardY[i]));
+			int newX = current.x + forwardX[i];
+			int newY = current.y + forwardY[i];
+			char newTile = map[newX][newY];
+			
+			if (canWalk(newTile)
+				|| (newTile == '~' && (currTile == '~' || currTile == 'B'))
+				|| (newTile == 'T')
+				|| newTile == '*') {
+				Coord newCoord(newX, newY, current.kabooms + (newTile == '*' || (newTile == 'T' && !hasAxe()) ? 1 : 0));
+				std::vector<Coord>::iterator iter;
+				for (iter = closed.begin(); iter != closed.end(); ++iter) {
+					if (newCoord == *iter) break;
+				}
+				
+				if (iter == closed.end()) {
+					closed.push_back(newCoord);
+					open.push(newCoord);
+				}
+			}
 		}
 	}
 }
@@ -296,23 +329,18 @@ public:
 		this->path = path;
 	}
 	
-	aStarNode(const aStarNode &old, World &world, const char move) {
+	aStarNode(const aStarNode &old, const World &world, const char move) {
 		posX = old.posX;
 		posY = old.posY;
 		direction = old.direction;
 		if (move == 'F' || move == 'f') {
-			char canAccess = world.getAccess(posX + world.forwardX[direction], posY + world.forwardY[direction]);
+			bool canAccess = world.canAccess(posX + world.forwardX[direction], posY + world.forwardY[direction], 0);
 			char on = world.getMap(posX, posY);
 			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
-			if ((canAccess == 1 && !(front == '~' && on == ' '))
-				|| (canAccess == unknown
-					&& (front == ' ' || front == 'g' || front == 'a' || front == 'd' || front == 'B'
-						|| (front == '~' && on != ' ')))) {
+			if (canAccess && !(front == '~' && on == ' ')) {
+				if (front == 'T') path.push_back('c');
 				posX += world.forwardX[direction];
-				posY += world.forwardY[direction];
-				world.setAccess(posX, posY, 1);
-			} else {
-				world.setAccess(posX + world.forwardX[direction], posY + world.forwardY[direction], 0);
+				posY += world.forwardY[direction];	
 			}
 		} else if (move == 'L' || move == 'l') {
 			direction = (direction + 3) % 4;
@@ -360,10 +388,12 @@ char World::aStar(int destX, int destY) {
 	if (destX == aStarDestX && destY == aStarDestY) {
 		char move = aStarCache.back();
 		aStarCache.pop_back();
+		putchar(move);
 		return move;
 	}
 		
-	if (getAccess(destX, destY) == 0 || getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
+	if (!canAccess(destX, destY, 0) || getMap(destX, destY) == 'T' || getMap(destX, destY) == '*') {
+		putchar('?');
 		return 0;
 	}
 	
@@ -384,6 +414,7 @@ char World::aStar(int destX, int destY) {
 			std::reverse(current.path.begin(), current.path.end());
 			current.path.pop_back();
 			aStarCache = current.path;
+			putchar(move);
 			return move;
 		}
 		
@@ -409,90 +440,64 @@ char World::aStar(int destX, int destY) {
 		}
 	}
 	
-	setAccess(destX, destY, 0);
+	putchar('?');
 	return 0;
 };
 
-class ExpNode{
-public:
-	int posX, posY, moves;
-	World* world;
-
-	ExpNode(const int posX, const int posY, const int moves, World* world){
-		this->posX = posX;
-		this->posY = posY;
-		this->moves = moves;
-		this->world = world;
-	}
+char World::explore() {
+	printf("explore\n");
+	std::vector<Coord> closed;
+	std::queue<Coord> open;
 	
-	int surrounds() const {
-		int count = 0;
-		for (int i = posX - 2; i <= posX + 2; ++i) {
-			for (int j = posY - 2; j <= posY + 2; ++j) {
-				if (world->getMap(i,j) == '?') {
-					count++;
-				}
-			}
-		}
-		return count;
-	}
-	
-	bool operator==(const ExpNode &other) const {
-		return (posX == other.posX && posY == other.posY);
-	}
-	
-	bool operator<(const ExpNode &other) const {
-		return moves < other.moves;
-	}
-	
-	bool operator>(const ExpNode &other) const {
-		return moves > other.moves;
-	}
-
-};
-
-char World::explore(){
-	std::vector<ExpNode> closed;
-	std::priority_queue<ExpNode, std::vector<ExpNode>, std::greater<ExpNode> > open;
-
-	ExpNode current(posX, posY, 0, this);
+	Coord current(posX, posY);
+	closed.push_back(current);
 	open.push(current);
 	//directions of movement arraged so once added to the queue the ones with least turns required
 	//will be sorted closer to front if tied with others
-	while (!open.empty()){
-		current = open.top();
-		if (current.surrounds() > 0){
-			char move = aStar(current.posX, current.posY);
-			if (move != 0){
-				printf("explore: %d %d\n",current.posX,current.posY);
+	while (!open.empty()) {
+		printf("%d\n", open.size());
+		current = open.front();
+		if (!isExplored(current.x, current.y)) {
+			char move = aStar(current.x, current.y);
+			if (move != 0) {
+				printf("explore: %d %d\n", current.x, current.y);
+				printf("end explore\n");
 				return move;
 			}
 		}
 
 		open.pop();
-		closed.push_back(current);
-		for (int i = 0; i < 4; i++) {
-			int x = current.posX + forwardX[i];
-			int y = current.posY + forwardY[i];
-			if(getMap(x,y) == '*' || getMap(x,y) == 'T'|| getMap(x,y) == '.'|| getMap(x,y) == '?'){
-				continue;
+		for (int i = 0; i < 4; ++i) {
+			int newX = current.x + forwardX[i];
+			int newY = current.y + forwardY[i];
+			if (hasAxe() && getMap(newX, newY) == 'T') {
+				printf("end explore\n");
+				return aStar(current.x, current.y);
 			}
-			ExpNode nextNode(x,y,current.moves+1,this);
+			
+			if (!canAccess(newX, newY, 0)) continue;
+			
+			Coord nextNode(newX, newY);
 			bool found = false;
-			for (std::vector<ExpNode>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
+			for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
 				if (nextNode == *iter) {
 					found = true;
 					break;
 				}
 			}
-			if (!found) open.push(nextNode);
+			if (!found) {
+				closed.push_back(nextNode);
+				open.push(nextNode);
+			}
 		}
 	}
 	
+	printf("end explore\n");
 	return 0;
 }
 
-char World::findInterest(){
+char World::findInterest() {
+	printf("findInterest\n");
 	char interests[3] = {'g','a','d'};
 	char move = 0;
 	for (int i = 0; i < 3 ; i++){
@@ -505,29 +510,15 @@ char World::findInterest(){
 }
 
 char World::chopTrees(){
-	if(getInDirection(0) == 'T'){
+	printf("chopTrees\n");
+	if (getInDirection(0) == 'T') {
 		return 'c';
-	}
-	else if(getInDirection(1) == 'T'){
+	} else if (getInDirection(1) == 'T') {
 		return 'r';
-	}
-	else if(getInDirection(2) == 'T'){
+	} else if (getInDirection(2) == 'T') {
 		return 'r';
-	}
-	else if(getInDirection(3) == 'T'){
+	} else if (getInDirection(3) == 'T') {
 		return 'l';
-	}
-	for (int j = seenYMax; j >= seenYMin; --j) {
-		for (int i = seenXMin; i <= seenXMax; ++i) {
-			if (getMap(i,j) == 'T'){
-				for( int k = 0; k < 4; k++){
-					char move = aStar(posX+forwardX[k], posY+forwardY[k]);
-					if(move != 0){
-						return move;
-					}
-				}
-			}
-		}
 	}
 	return 0;
 }
@@ -571,9 +562,8 @@ void World::print() const {
 	for (int j = arrayYMax; j >= arrayYMin; --j) {
 		putchar('?');
 		for (int i = arrayXMin; i <= arrayXMax; ++i) {
-			if (access[i][j] == unknown) putchar('u');
-			else if (access[i][j] == 0) putchar('0');
-			else if (access[i][j] == 1) putchar('1');
+			if (access[i][j] == -1) putchar('X');
+			else putchar(access[i][j] ^ '0');
 		}
 		printf("?\n");
 	}
@@ -622,7 +612,7 @@ char getAction(World &world) {
 	}
 	if (move == 0) {
 		move = world.findInterest();
-	} 
+	}
 	if (move == 0) {
 		if (world.hasAxe()) {
 			move = world.chopTrees();
