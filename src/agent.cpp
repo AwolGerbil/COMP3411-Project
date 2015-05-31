@@ -22,7 +22,10 @@
 int   pipe_fd;
 FILE* in_stream;
 FILE* out_stream;
-
+/*
+ * Transpose matrix
+ * used for view management
+ */
 void transpose(char (&tran)[5][5]) {
 	int i, j;
 	char swap;
@@ -34,7 +37,9 @@ void transpose(char (&tran)[5][5]) {
 		}
 	}
 }
-
+/*
+ * reverse rows in matrix
+ */
 void reverseRows(char (&rev)[5][5]) {
 	int i, start, end;
 	char swap;
@@ -51,6 +56,9 @@ void reverseRows(char (&rev)[5][5]) {
 	}
 }
 
+/*
+ * reverses columns in matrix
+ */
 void reverseCols(char (&rev)[5][5]) {
 	int i, start, end;
 	char swap;
@@ -67,16 +75,25 @@ void reverseCols(char (&rev)[5][5]) {
 	}
 }
 
+/*
+ * rotate matrix clock wise
+ */
 void rotateCW(char (&rot)[5][5]) {
 	transpose(rot);
 	reverseRows(rot);
 }
 
+/*
+ * rotate matrix counter clock wise
+ */
 void rotateCCW(char (&rot)[5][5]) {
 	transpose(rot);
 	reverseCols(rot);
 }
 
+/*
+ * rotate matrix 180 degrees
+ */
 void rotate180(char (&rot)[5][5]) {
 	reverseCols(rot);
 	reverseRows(rot);
@@ -452,6 +469,10 @@ char World::aStar(int destX, int destY, bool kaboom) {
 	return 0;
 };
 
+/*
+ * determins the best moves to releave unknown areas of map
+ * aims for closet tile to reveal 
+ */
 char World::explore() {
 	std::vector<Coord> closed;
 	std::queue<Coord> open;
@@ -463,6 +484,7 @@ char World::explore() {
 	//will be sorted closer to front if tied with others
 	while (!open.empty()) {
 		current = open.front();
+		// return condition of closet unexplored tile
 		if (!isExplored(current.x, current.y)) {
 			char move = aStar(current.x, current.y);
 			if (move != 0) {
@@ -471,19 +493,22 @@ char World::explore() {
 		}
 
 		open.pop();
+		//eval adjacent tiles
 		for (int i = 0; i < 4; ++i) {
 			int newX = current.x + forwardX[i];
 			int newY = current.y + forwardY[i];
 			if (!canAccess(newX, newY, 0)) continue;
-			
+			//reject unreachable tiles
 			Coord nextNode(newX, newY);
 			bool found = false;
+
 			for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
 				if (nextNode == *iter) {
 					found = true;
 					break;
 				}
 			}
+			//rejects evaluated tiles
 			if (!found) {
 				closed.push_back(nextNode);
 				open.push(nextNode);
@@ -494,6 +519,7 @@ char World::explore() {
 	return 0;
 }
 
+//returns moves to reachable tool
 char World::findInterest() {
 	char interests[3] = {'g','a','d'};
 	char move = 0;
@@ -506,7 +532,10 @@ char World::findInterest() {
 	return move;
 }
 
+//returns move of the most effiecient bomb use
 char World::bomb(){
+	//checks if previous call of function was called and goal was not reached
+	//if so use previous destination
 	if (bombX != 9001) {
 		char move = aStar(bombX, bombY, true);
 		if (move == 'b') bombX = 9001;
@@ -515,7 +544,7 @@ char World::bomb(){
 	int highScore = -1;
 	int highX = -1;
 	int highY = -1;
-
+	//iterates through all bomb positions evaluates the worth of blowing up
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i, j) == 1){
@@ -528,6 +557,7 @@ char World::bomb(){
 			}
 		}
 	}
+	//returns best move
 	bombX = highX;
 	bombY = highY;
 	char move = aStar(highX, highY, true);
@@ -535,6 +565,7 @@ char World::bomb(){
 	return move;
 }
 
+//evaluates the worth of blowing up target tile
 int World::bombVal(int i,int j){
 	std::vector<Coord> closed;
 	std::queue<Coord> open;
@@ -547,9 +578,11 @@ int World::bombVal(int i,int j){
 	Coord current(i, j);
 	closed.push_back(current);
 	open.push(current);
+
 	while (!open.empty()) {
 		current = open.front();
 		open.pop();
+		//if tile contains axe then evaluate all tree tiles
 		if ( getMap(current.x, current.y) == 'a' ){
 			for (int j = seenYMax; j >= seenYMin; --j) {
 				for (int i = seenXMin; i <= seenXMax; ++i) {
@@ -571,11 +604,13 @@ int World::bombVal(int i,int j){
 				}
 			}
 		}
+		//evaluates adjacent tiles
 		for (int k = 0; k < 4; ++k) {
 			int newX = current.x + forwardX[k];
 			int newY = current.y + forwardY[k];
 			char on = getMap(newX, newY);
 			char from = getMap(current.x, current.y);
+			//adds to queues if affected by removal of target tiles
 			if (getAccess(newX, newY) > getAccess(current.x, current.y)
 				|| (getAccess(newX, newY) == getAccess(current.x, current.y) && 
 					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' || on == 'd'))|| 
@@ -588,8 +623,10 @@ int World::bombVal(int i,int j){
 						break;
 					}
 				}
+				//evaluate if not previously evaluated
 				if (!found) {
 					++reduced;
+					//if a tool then increment counts used for judging
 					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B' ) {
 						if ( getAccess(newX, newY) == 1 ){
 							toolsFound++;
@@ -606,6 +643,7 @@ int World::bombVal(int i,int j){
 			}
 		}
 	}
+	//return score
 	if (goldAccess == 0) {
 		return 2147483647;
 	} else {
@@ -613,8 +651,7 @@ int World::bombVal(int i,int j){
 	}
 }
 
-
-
+//finds tiles of given type
 char World::findTile(char target) {
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
