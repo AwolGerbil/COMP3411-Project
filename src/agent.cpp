@@ -227,7 +227,6 @@ void World::updateMap(char (&view)[5][5]) {
 		map[posX + world_center][posY + world_center] = ' ';
 	}
 	
-	printf("update\n");
 	if (recheck) evalAccess();
 }
 
@@ -316,8 +315,6 @@ void World::move(char command) {
 	} else if (command == 'C' || command == 'c') { // Chop
 	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
 		inventory.useKaboom();
-	} else {
-		printf("Y U DO DIS?");
 	}
 }
 
@@ -390,15 +387,11 @@ public:
 // If unpathable, returns 0
 char World::aStar(int destX, int destY, bool kaboom) {
 	// Use cached path if possible
-	printf("aStar %d %d\n", destX, destY);
 	if (posX == destX && posY == destY) {
 		return 0;
 	}
 
 	if (destX == aStarDestX && destY == aStarDestY) {
-		for (std::vector<char>::iterator iter = aStarCache.begin(); iter != aStarCache.end(); ++iter) {
-			putchar(*iter);
-		}
 		if (!aStarCache.empty()) {
 			char move = aStarCache.back();
 			aStarCache.pop_back();
@@ -460,7 +453,6 @@ char World::aStar(int destX, int destY, bool kaboom) {
 };
 
 char World::explore() {
-	printf("explore\n");
 	std::vector<Coord> closed;
 	std::queue<Coord> open;
 	
@@ -474,8 +466,6 @@ char World::explore() {
 		if (!isExplored(current.x, current.y)) {
 			char move = aStar(current.x, current.y);
 			if (move != 0) {
-				printf("explore: %d %d\n", current.x, current.y);
-				printf("end explore\n");
 				return move;
 			}
 		}
@@ -501,12 +491,10 @@ char World::explore() {
 		}
 	}
 	
-	printf("end explore\n");
 	return 0;
 }
 
 char World::findInterest() {
-	printf("findInterest\n");
 	char interests[3] = {'g','a','d'};
 	char move = 0;
 	for (int i = 0; i < 3 ; ++i){
@@ -532,10 +520,7 @@ char World::bomb(){
 		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i, j) == 1){
 				int kabooms = bombVal(i, j);
-				printf("checking at %d %d\n",i,j);
-				printf("value: %d\n", kabooms);
 				if(highScore < kabooms){
-					printf("getting better\n");
 					highScore = kabooms;
 					highX = i;
 					highY = j;
@@ -543,7 +528,6 @@ char World::bomb(){
 			}
 		}
 	}
-	printf("bomb at %d %d with %d \n",highX, highY, highScore);
 	bombX = highX;
 	bombY = highY;
 	char move = aStar(highX, highY, true);
@@ -584,14 +568,12 @@ int World::bombVal(int i,int j){
 				if (!found) {
 					++reduced;
 					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B') {
-						printf("tool!\n");
 						if ( getAccess(newX, newY) == 1 ){
 							toolsFound++;
 						} else {
 							toolsCloser++;
 						}
 						if ( on == 'g' ){
-							printf("gold at %d %d\n",newX,newY);
 							goldAccess = getAccess(newX, newY) - 1;
 						}
 					}
@@ -660,34 +642,29 @@ void World::print() const {
 }
 
 char getAction(World &world) {
-	world.print();
-	printf("%d %d %d", world.getPositionX(), world.getPositionY(), world.getKaboomCount());
+	//world.print();
 	
 	// Plan:
 	// If gold can be accessed by walking/boat, then access it and return gold
 	// Otherwise, explore via walking/boat, chop trees if possible
 	char move = 0;
 	if (world.hasGold()) {
-		printf("RETURN\n");
 		move = world.aStar(0,0);
 	}
 	if (move == 0) {
-		printf("INTEREST\n");
 		move = world.findInterest();
 	}
 	if (move == 0){
-		printf("EXPLORE\n");
 		move = world.explore();
 	}
 	if (move == 0){
-		printf("BOMB\n");
 		move = world.bomb();
 		//BOOOOOOOOOOOOOOOOOMB
 	}
 	// TODO
-	getchar();
-	//usleep(100);
-	printf("gonna: %c\n",move);
+	//getchar();
+	usleep(100);
+	//printf("gonna: %c\n",move);
 	world.move(move);
 	return move;
 }
