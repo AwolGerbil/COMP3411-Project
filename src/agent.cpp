@@ -619,7 +619,7 @@ char World::findTile(char target) {
 			}
 		}
 	}
-	return 0;
+	return move;
 }
 
 void World::print() const {
@@ -679,9 +679,6 @@ char getAction(World &world) {
 		printf("EXPLORE\n");
 		move = world.explore();
 	}
-	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
-	// TODO
-	// Attempt to use bombs to access gold/tools in most cost effective manner
 	if (move == 0){
 		printf("BOMB\n");
 		move = world.bomb();
