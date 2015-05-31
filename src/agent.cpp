@@ -17,6 +17,7 @@
 
 #define map_size 80
 #define world_size map_size * 2 - 1 + 3
+#define world_center map_size + 2
 
 int   pipe_fd;
 FILE* in_stream;
@@ -123,25 +124,24 @@ public:
 	char aStar(int destX, int destY);
 	char explore();
 	char findInterest();
-	char chopTrees();
 	char bomb();
 	char findTile(char target);
 	void print() const;
 	
-	char getFront() const;
-	void clearFront();
-	char getInDirection(int angle) const;
+	char getFront() const { return map[posX + forwardX[direction] + world_center][posY + forwardY[direction] + world_center]; }
+	void clearFront() { map[posX + forwardX[direction] + world_center][posY + forwardY[direction] + world_center] = ' '; }
+	char getInDirection(int angle) const { return map[posX + forwardX[(direction + angle) % 4] + world_center][posY + forwardY[(direction + angle) % 4] + world_center]; }
 	
 	int getPositionX() const { return posX; }
 	int getPositionY() const { return posY; }
 	int getVisibleWidth() const { return seenXMax - seenXMin; }
 	int getVisibleHeight() const { return seenYMax - seenYMin; }
 	
-	char getMap(int x, int y) const { return map[x + 80][y + 80]; }
-	bool canAccess(int x, int y, int kabooms) const { return access[x + 80][y + 80] != -1 && access[x + 80][y + 80] <= kabooms; }
+	char getMap(int x, int y) const { return map[x + world_center][y + world_center]; }
+	bool canAccess(int x, int y, int kabooms) const { return access[x + world_center][y + world_center] != -1 && access[x + world_center][y + world_center] <= kabooms; }
 	bool isExplored(int x, int y) const {
-		for (int i = x + 78; i <= x + 82; ++i) {
-			for (int j = y + 78; j <= y + 82; ++j) {
+		for (int i = x + world_center - 2; i <= x + world_center + 2; ++i) {
+			for (int j = y + world_center - 2; j <= y + world_center + 2; ++j) {
 				if (map[i][j] == '?') {
 					return false;
 				}
@@ -189,8 +189,8 @@ void World::updateMap(char (&view)[5][5]) {
 	seenYMax = posY + 2 > seenYMax ? posY + 2 : seenYMax;
 	
 	// Offset for array
-	int x = posX + 78;
-	int y = posY + 82;
+	int x = posX + world_center - 2;
+	int y = posY + world_center + 2;
 	
 	// Rotate view to correct orientation
 	if (direction == 1) {
@@ -216,10 +216,10 @@ void World::updateMap(char (&view)[5][5]) {
 	
 	// world map ignores player
 	if (onBoat()) {
-		map[posX + 80][posY + 80] = 'B';
+		map[posX + world_center][posY + world_center] = 'B';
 	} else {
-		if (map[posX + 80][posY + 80] != ' ') recheck = true;
-		map[posX + 80][posY + 80] = ' ';
+		if (map[posX + world_center][posY + world_center] != ' ') recheck = true;
+		map[posX + world_center][posY + world_center] = ' ';
 	}
 	
 	printf("update\n");
@@ -253,7 +253,7 @@ void World::evalAccess() {
 	std::vector<Coord> closed;
 	std::priority_queue<Coord, std::vector<Coord>, std::greater<Coord> > open;
 	
-	Coord current(posX + 80, posY + 80, 0);
+	Coord current(posX + world_center, posY + world_center, 0);
 	open.push(current);
 	
 	while (!open.empty()) {
@@ -342,7 +342,7 @@ public:
 			bool canAccess = world.canAccess(posX + world.forwardX[direction], posY + world.forwardY[direction], 0);
 			char on = world.getMap(posX, posY);
 			char front = world.getMap(posX + world.forwardX[direction], posY + world.forwardY[direction]);
-			if (canAccess && !(front == '~' && on == ' ')) {
+			if (canAccess && !(front == '~' && (on == ' ' || on == 'T' || on == '*' || on == 'a' || on == 'd' || on == 'g'))) {
 				if (front == 'T') path.push_back('c');
 				posX += world.forwardX[direction];
 				posY += world.forwardY[direction];	
@@ -387,14 +387,15 @@ char World::aStar(int destX, int destY) {
 	// Use cached path if possible
 	printf("astar %d %d\n", destX, destY);
 	if (destX == aStarDestX && destY == aStarDestY) {
+		for (std::vector<char>::iterator iter = aStarCache.begin(); iter != aStarCache.end(); ++iter) {
+			putchar(*iter);
+		}
 		char move = aStarCache.back();
 		aStarCache.pop_back();
-		putchar(move);
 		return move;
 	}
 		
 	if (!canAccess(destX, destY, 0) || getMap(destX, destY) == '*') {
-		putchar('?');
 		return 0;
 	}
 	
@@ -409,17 +410,13 @@ char World::aStar(int destX, int destY) {
 		// YAAAY!
 		if (current.estimate() == 0) {
 			// Update cache
-
-			for (std::vector<char>::iterator iter = current.path.begin(); iter != current.path.end(); ++iter) {
-				putchar(*iter);
-			}
+			
 			aStarDestX = destX;
 			aStarDestY = destY;
 			char move = current.path.front();
 			std::reverse(current.path.begin(), current.path.end());
 			current.path.pop_back();
 			aStarCache = current.path;
-			//putchar(move);
 			return move;
 		}
 		
@@ -445,7 +442,6 @@ char World::aStar(int destX, int destY) {
 		}
 	}
 	
-	putchar('?');
 	return 0;
 };
 
@@ -460,7 +456,6 @@ char World::explore() {
 	//directions of movement arraged so once added to the queue the ones with least turns required
 	//will be sorted closer to front if tied with others
 	while (!open.empty()) {
-		printf("%d\n", open.size());
 		current = open.front();
 		if (!isExplored(current.x, current.y)) {
 			char move = aStar(current.x, current.y);
@@ -500,7 +495,7 @@ char World::findInterest() {
 	printf("findInterest\n");
 	char interests[3] = {'g','a','d'};
 	char move = 0;
-	for (int i = 0; i < 3 ; i++){
+	for (int i = 0; i < 3 ; ++i){
 		move = findTile(interests[i]);
 		if (move != 0){
 			return move;
@@ -509,24 +504,10 @@ char World::findInterest() {
 	return move;
 }
 
-char World::chopTrees(){
-	printf("chopTrees\n");
-	if (getInDirection(0) == 'T') {
-		return 'c';
-	} else if (getInDirection(1) == 'T') {
-		return 'r';
-	} else if (getInDirection(2) == 'T') {
-		return 'r';
-	} else if (getInDirection(3) == 'T') {
-		return 'l';
-	}
-	return 0;
-}
-
 char World::bomb(){
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
-			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i,j) == 1){
+			if (getMap(i,j) == 'T' || getMap(i,j) == '*'){
 				return 1;
 			}
 		}
@@ -546,16 +527,16 @@ char World::findTile(char target) {
 }
 
 void World::print() const {
-	int arrayXMin = seenXMin + 80;
-	int arrayXMax = seenXMax + 80;
-	int arrayYMin = seenYMin + 80;
-	int arrayYMax = seenYMax + 80;
+	int arrayXMin = seenXMin + world_center;
+	int arrayXMax = seenXMax + world_center;
+	int arrayYMin = seenYMin + world_center;
+	int arrayYMax = seenYMax + world_center;
 	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
 	printf("\n");
 	for (int j = arrayYMax; j >= arrayYMin; --j) {
 		putchar('?');
 		for (int i = arrayXMin; i <= arrayXMax; ++i) {
-			if (i == posX + 80 && j == posY + 80) {
+			if (i == posX + world_center && j == posY + world_center) {
 				if (direction == 0) putchar('^');
 				else if (direction == 1) putchar('>');
 				else if (direction == 2) putchar('v');
@@ -580,34 +561,6 @@ void World::print() const {
 	}
 	for (int i = arrayXMin - 1; i <= arrayXMax + 1; ++i) { putchar('?'); }
 	printf("\n");
-}
-
-char World::getFront() const {
-	if (direction == 0) {
-		return map[posX + 80][posY + 81];
-	} else if (direction == 1) {
-		return map[posX + 81][posY + 80];
-	} else if (direction == 2) {
-		return map[posX + 80][posY + 79];
-	} else {
-		return map[posX + 79][posY + 80];
-	}
-}
-
-char World::getInDirection(int angle) const {
-	return getMap(posX+forwardX[(direction+angle)%4], posY+forwardY[(direction+angle)%4]);
-}
-
-void World::clearFront() {
-	if (direction == 0) {
-		map[posX + 80][posY + 81] = ' ';
-	} else if (direction == 1) {
-		map[posX + 81][posY + 80] = ' ';
-	} else if (direction == 2) {
-		map[posX + 80][posY + 79] = ' ';
-	} else {
-		map[posX + 79][posY + 80] = ' ';
-	}
 }
 
 char getAction(World &world) {
