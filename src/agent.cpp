@@ -23,11 +23,6 @@ int   pipe_fd;
 FILE* in_stream;
 FILE* out_stream;
 
-
-/*
- * transpose given 5 by 5 matrix
- * used for rotation of view
- */
 void transpose(char (&tran)[5][5]) {
 	int i, j;
 	char swap;
@@ -40,11 +35,6 @@ void transpose(char (&tran)[5][5]) {
 	}
 }
 
-
-/*
- * reverse the rows of given 5 by 5 matrix
- * used for rotation of view
- */
 void reverseRows(char (&rev)[5][5]) {
 	int i, start, end;
 	char swap;
@@ -61,10 +51,6 @@ void reverseRows(char (&rev)[5][5]) {
 	}
 }
 
-/*
- * reverse columns of given 5 by 5 matrix
- * used for rotation of view
- */
 void reverseCols(char (&rev)[5][5]) {
 	int i, start, end;
 	char swap;
@@ -81,33 +67,21 @@ void reverseCols(char (&rev)[5][5]) {
 	}
 }
 
-/*
- * rotate given 5 by 5 matrix clock wise
- */
 void rotateCW(char (&rot)[5][5]) {
 	transpose(rot);
 	reverseRows(rot);
 }
 
-/*
- * rotate given 5 by 5 matrix counter clock wise
- */
 void rotateCCW(char (&rot)[5][5]) {
 	transpose(rot);
 	reverseCols(rot);
 }
 
-/*
- * rotate given 5 by 5 matrix 180 degrees
- */
 void rotate180(char (&rot)[5][5]) {
 	reverseCols(rot);
 	reverseRows(rot);
 }
 
-/*
- * class to keep track of the items held by agent
- */
 class Inventory{
 	bool axe, gold;
 	int kaboomCount;
@@ -122,35 +96,27 @@ public:
 	void useKaboom() { --kaboomCount; }
 };
 
-/*
- * Inventory constructor
- */
 Inventory::Inventory(){
 	axe = false;
 	gold = false;
 	kaboomCount = 0;
 }
 
-/*
- * class to track world state explored by agent
- */
 class World {
 	Inventory inventory;
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
-	int bombX, bombY; //coords of bomb
-	char map[world_size][world_size]; // 2D array to track viewed areas
+	int bombX, bombY;
+	char map[world_size][world_size];
 	char access[world_size][world_size]; // -1 = cannot access, x > 0 = can access with x # of bombs
-	bool boat; // status if on a boat or not
+	bool boat;
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 	int aStarDestX, aStarDestY; // last aStar destination
 	std::vector<char> aStarCache; // for caching the shortest path to a given coordinate
 public:
-	static const int forwardX[4]; //arrays to help move forward based on direction
+	static const int forwardX[4];
 	static const int forwardY[4];
-	//checks if tile can be walked on
 	static bool canWalk(char tile) { return (tile == ' ' || tile == 'a' || tile == 'd' || tile == 'B' || tile == 'g'); }
-
 	
 	World();
 	void updateMap(char (&view)[5][5]);
@@ -261,7 +227,6 @@ void World::updateMap(char (&view)[5][5]) {
 		map[posX + world_center][posY + world_center] = ' ';
 	}
 	
-	printf("update\n");
 	if (recheck) evalAccess();
 }
 
@@ -350,8 +315,6 @@ void World::move(char command) {
 	} else if (command == 'C' || command == 'c') { // Chop
 	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
 		inventory.useKaboom();
-	} else {
-		printf("Y U DO DIS?");
 	}
 }
 
@@ -424,15 +387,11 @@ public:
 // If unpathable, returns 0
 char World::aStar(int destX, int destY, bool kaboom) {
 	// Use cached path if possible
-	printf("aStar %d %d\n", destX, destY);
 	if (posX == destX && posY == destY) {
 		return 0;
 	}
 
 	if (destX == aStarDestX && destY == aStarDestY) {
-		for (std::vector<char>::iterator iter = aStarCache.begin(); iter != aStarCache.end(); ++iter) {
-			putchar(*iter);
-		}
 		if (!aStarCache.empty()) {
 			char move = aStarCache.back();
 			aStarCache.pop_back();
@@ -494,7 +453,6 @@ char World::aStar(int destX, int destY, bool kaboom) {
 };
 
 char World::explore() {
-	printf("explore\n");
 	std::vector<Coord> closed;
 	std::queue<Coord> open;
 	
@@ -508,8 +466,6 @@ char World::explore() {
 		if (!isExplored(current.x, current.y)) {
 			char move = aStar(current.x, current.y);
 			if (move != 0) {
-				printf("explore: %d %d\n", current.x, current.y);
-				printf("end explore\n");
 				return move;
 			}
 		}
@@ -535,12 +491,10 @@ char World::explore() {
 		}
 	}
 	
-	printf("end explore\n");
 	return 0;
 }
 
 char World::findInterest() {
-	printf("findInterest\n");
 	char interests[3] = {'g','a','d'};
 	char move = 0;
 	for (int i = 0; i < 3 ; ++i){
@@ -566,10 +520,7 @@ char World::bomb(){
 		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i, j) == 1){
 				int kabooms = bombVal(i, j);
-				printf("checking at %d %d\n",i,j);
-				printf("value: %d\n", kabooms);
 				if(highScore < kabooms){
-					printf("getting better\n");
 					highScore = kabooms;
 					highX = i;
 					highY = j;
@@ -577,7 +528,6 @@ char World::bomb(){
 			}
 		}
 	}
-	printf("bomb at %d %d with %d \n",highX, highY, highScore);
 	bombX = highX;
 	bombY = highY;
 	char move = aStar(highX, highY, true);
@@ -588,20 +538,11 @@ char World::bomb(){
 int World::bombVal(int i,int j){
 	std::vector<Coord> closed;
 	std::queue<Coord> open;
-	std::queue<Coord> trees;
 	
 	int toolsFound = 0;
 	int toolsCloser = 0;
 	int goldAccess = -1;
 	int reduced = 0;
-
-	bool axe = hasAxe();
-	int toolsFoundTree = 0;
-	int toolsCloserTree = 0;
-	int goldAccessTree = -1;
-	int reducedTree = 0;
-
-
 
 	Coord current(i, j);
 	closed.push_back(current);
@@ -615,7 +556,7 @@ int World::bombVal(int i,int j){
 			char on = getMap(newX, newY);
 			if (getAccess(newX, newY) > getAccess(current.x, current.y)
 				|| (getAccess(newX, newY) == getAccess(current.x, current.y) && 
-					((on == 'T' && axe) || on == ' ' || on == 'B' || on == 'a' || on == 'g' || on == 'd'))){ 
+					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' || on == 'd'))){ 
 				Coord nextNode(newX, newY);
 				bool found = false;
 				for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
@@ -627,57 +568,18 @@ int World::bombVal(int i,int j){
 				if (!found) {
 					++reduced;
 					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B') {
-						printf("tool!\n");
 						if ( getAccess(newX, newY) == 1 ){
 							toolsFound++;
 						} else {
 							toolsCloser++;
 						}
 						if ( on == 'g' ){
-							printf("gold at %d %d\n",newX,newY);
 							goldAccess = getAccess(newX, newY) - 1;
-						}
-						if ( on == 'a' ){
-							axe = true;
-							toolsFound += toolsFoundTree;
-							toolsCloser += toolsCloserTree;
-							goldAccessTree += goldAccessTree;
-							reducedTree += reducedTree;
-							while( !trees.empty() ){
-								Coord tree = trees.front();
-								trees.pop();
-								open.push(tree);
-							}
-
 						}
 					}
 					closed.push_back(nextNode);
 					open.push(nextNode);
-				} 
-			}else if (on == 'T') {
-				Coord nextNode(newX, newY);
-				bool found = false;
-				for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
-					if (nextNode == *iter) {
-						found = true;
-						break;
-					}
 				}
-				if (!found) {
-					++reducedTree;
-					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B') {
-						if ( getAccess(newX, newY) == 1 ){
-							toolsFoundTree++;
-						} else {
-							toolsCloserTree++;
-						}
-						if ( on == 'g' ){
-							goldAccessTree = getAccess(newX, newY) - 1;
-						}
-					}
-					closed.push_back(nextNode);
-					trees.push(nextNode);
-				} 
 			}
 		}
 	}
@@ -740,34 +642,29 @@ void World::print() const {
 }
 
 char getAction(World &world) {
-	world.print();
-	printf("%d %d %d", world.getPositionX(), world.getPositionY(), world.getKaboomCount());
+	//world.print();
 	
 	// Plan:
 	// If gold can be accessed by walking/boat, then access it and return gold
 	// Otherwise, explore via walking/boat, chop trees if possible
 	char move = 0;
 	if (world.hasGold()) {
-		printf("RETURN\n");
 		move = world.aStar(0,0);
 	}
 	if (move == 0) {
-		printf("INTEREST\n");
 		move = world.findInterest();
 	}
 	if (move == 0){
-		printf("EXPLORE\n");
 		move = world.explore();
 	}
 	if (move == 0){
-		printf("BOMB\n");
 		move = world.bomb();
 		//BOOOOOOOOOOOOOOOOOMB
 	}
 	// TODO
-	getchar();
-	//usleep(100);
-	printf("gonna: %c\n",move);
+	//getchar();
+	usleep(100);
+	//printf("gonna: %c\n",move);
 	world.move(move);
 	return move;
 }
