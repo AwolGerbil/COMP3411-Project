@@ -270,7 +270,9 @@ struct Coord {
 	}
 };
 
+// evaluates the accessability of each map coordinate
 void World::evalAccess() {
+	// BFS
 	std::vector<Coord> closed;
 	std::priority_queue<Coord, std::vector<Coord>, std::greater<Coord> > open;
 	
@@ -278,26 +280,31 @@ void World::evalAccess() {
 	open.push(current);
 	
 	while (!open.empty()) {
+		// pop open queue and update access array
 		current = open.top();
 		open.pop();
 		access[current.x][current.y] = current.kabooms;
 		
+		// expand adjacent coordinates
 		char currTile = map[current.x][current.y];
 		for (int i = 0; i < 4; i++) {
 			int newX = current.x + forwardX[i];
 			int newY = current.y + forwardY[i];
 			char newTile = map[newX][newY];
 			
+			// check if coordinate is accessable
 			if (canWalk(newTile)
 				|| (newTile == '~' && (currTile == '~' || currTile == 'B'))
 				|| (newTile == 'T')
 				|| newTile == '*') {
 				Coord newCoord(newX, newY, current.kabooms + (newTile == '*' || (newTile == 'T' && !hasAxe()) ? 1 : 0));
+				// check if in closed set
 				std::vector<Coord>::iterator iter;
 				for (iter = closed.begin(); iter != closed.end(); ++iter) {
 					if (newCoord == *iter) break;
 				}
 				
+				// add to open queue and closed set
 				if (iter == closed.end()) {
 					closed.push_back(newCoord);
 					open.push(newCoord);
@@ -335,11 +342,13 @@ void World::move(char command) {
 	}
 }
 
+// Subclass for aStar
 class aStarNode {
 public:
-	int posX, posY, direction, destX, destY;
-	std::vector<char> path;
+	int posX, posY, direction, destX, destY; // Coordinates/direction
+	std::vector<char> path; // Sequence of moves to reach this point
 	
+	// Base constructor from scratch
 	aStarNode(const int posX, const int posY, const int direction, const int destX, const int destY, const std::vector<char> &path = std::vector<char>()) {
 		this->posX = posX;
 		this->posY = posY;
@@ -349,6 +358,7 @@ public:
 		this->path = path;
 	}
 	
+	// Constructor which emulates move
 	aStarNode(const aStarNode &old, const World &world, const char move) {
 		posX = old.posX;
 		posY = old.posY;
@@ -374,6 +384,7 @@ public:
 		path.push_back(move);
 	}
 	
+	// Estimates cost to destination
 	int estimate() const {
 		int dX = destX - posX;
 		int dY = destY - posY;
@@ -386,6 +397,7 @@ public:
 		}
 	}
 	
+	// Overrides
 	bool operator==(const aStarNode &other) const {
 		return (posX == other.posX && posY == other.posY && direction == other.direction);
 	}
@@ -403,11 +415,12 @@ public:
 // Does not consider picking up tools
 // If unpathable, returns 0
 char World::aStar(int destX, int destY, bool kaboom) {
-	// Use cached path if possible
+	// Already at destination
 	if (posX == destX && posY == destY) {
 		return 0;
 	}
-
+	
+	// Use cached path if possible
 	if (destX == aStarDestX && destY == aStarDestY) {
 		if (!aStarCache.empty()) {
 			char move = aStarCache.back();
@@ -415,11 +428,13 @@ char World::aStar(int destX, int destY, bool kaboom) {
 			return move;
 		}
 	}
-		
+	
+	// Check if destination is accessable
 	if (!canAccess(destX, destY, kaboom ? 1 : 0)) {
 		return 0;
 	}
 	
+	// A* begin
 	std::vector<aStarNode> closed;
 	std::priority_queue<aStarNode, std::vector<aStarNode>, std::greater<aStarNode> > open;
 	aStarNode current(posX, posY, direction, destX, destY);
@@ -428,15 +443,13 @@ char World::aStar(int destX, int destY, bool kaboom) {
 	while (!open.empty()) {
 		current = open.top();
 		
-		// YAAAY!
+		// At destination/bombsite
 		if (current.estimate() == 0 || (kaboom && current.estimate() == 1)) {
 			// Update cache
-			
 			aStarDestX = destX;
 			aStarDestY = destY;
-			if (kaboom && getAccess(current.posX + forwardX[current.direction], current.posY + forwardY[current.direction]) > 0) {
-				current.path.push_back('b');
-			}
+			// If bombing, then add bomb move
+			if (kaboom && getAccess(current.posX + forwardX[current.direction], current.posY + forwardY[current.direction]) > 0) current.path.push_back('b');
 			char move = current.path.front();
 			std::reverse(current.path.begin(), current.path.end());
 			current.path.pop_back();
@@ -462,6 +475,7 @@ char World::aStar(int destX, int destY, bool kaboom) {
 				}
 			}
 			
+			// Push to open queue
 			if (!found) open.push(nextNode);
 		}
 	}
