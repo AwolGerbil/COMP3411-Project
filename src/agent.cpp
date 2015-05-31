@@ -600,14 +600,16 @@ int World::bombVal(int i,int j){
 
 
 char World::findTile(char target) {
+	char move = 0;
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if (getMap(i,j) == target){
-				return aStar(i, j);
+				move =  aStar(i, j);
+				if (move != 0) return move;
 			}
 		}
 	}
-	return 0;
+	return move;
 }
 
 void World::print() const {
@@ -664,9 +666,6 @@ char getAction(World &world) {
 	if (move == 0){
 		move = world.explore();
 	}
-	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
-	// TODO
-	// Attempt to use bombs to access gold/tools in most cost effective manner
 	if (move == 0){
 		move = world.bomb();
 		//BOOOOOOOOOOOOOOOOOMB
