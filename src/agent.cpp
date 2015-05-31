@@ -106,9 +106,9 @@ class World {
 	Inventory inventory;
 	int posX, posY; // cartesian coordinates
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
+	int bombX, bombY;
 	char map[world_size][world_size];
 	char access[world_size][world_size]; // -1 = cannot access, x > 0 = can access with x # of bombs
-	int bombCache[world_size][world_size];
 	bool boat;
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 	int aStarDestX, aStarDestY; // last aStar destination
@@ -122,7 +122,7 @@ public:
 	void updateMap(char (&view)[5][5]);
 	void evalAccess();
 	void move(char command);
-	char aStar(int destX, int destY);
+	char aStar(int destX, int destY, bool kaboom = false);
 	char explore();
 	char findInterest();
 	char bomb();
@@ -168,6 +168,7 @@ World::World() {
 	posX = 0; // starts at (0, 0)
 	posY = 0;
 	direction = 0; // starts facing north
+	bombX = 9001;
 	
 	boat = false;
 	
@@ -180,7 +181,6 @@ World::World() {
 		for (int j = 0; j < world_size; ++j) {
 			map[i][j] = '?';
 			access[i][j] = -1;
-			bombCache[i][j]= -1;
 		}
 	}
 }
@@ -387,9 +387,9 @@ public:
 // Returns the optimal move given a destination
 // Does not consider picking up tools
 // If unpathable, returns 0
-char World::aStar(int destX, int destY) {
+char World::aStar(int destX, int destY, bool kaboom) {
 	// Use cached path if possible
-	printf("astar %d %d\n", destX, destY);
+	printf("aStar %d %d\n", destX, destY);
 	if (destX == aStarDestX && destY == aStarDestY) {
 		for (std::vector<char>::iterator iter = aStarCache.begin(); iter != aStarCache.end(); ++iter) {
 			putchar(*iter);
@@ -399,7 +399,7 @@ char World::aStar(int destX, int destY) {
 		return move;
 	}
 		
-	if (!canAccess(destX, destY, 0) || getMap(destX, destY) == '*') {
+	if (!canAccess(destX, destY, kaboom ? 1 : 0)) {
 		return 0;
 	}
 	
@@ -412,11 +412,12 @@ char World::aStar(int destX, int destY) {
 		current = open.top();
 		
 		// YAAAY!
-		if (current.estimate() == 0) {
+		if (current.estimate() == 0 || (kaboom && current.estimate() == 1)) {
 			// Update cache
 			
 			aStarDestX = destX;
 			aStarDestY = destY;
+			if (kaboom) current.path.push_back('b');
 			char move = current.path.front();
 			std::reverse(current.path.begin(), current.path.end());
 			current.path.pop_back();
@@ -509,6 +510,11 @@ char World::findInterest() {
 }
 
 char World::bomb(){
+	if (bombX != 9001) {
+		char move = aStar(bombX, bombY, true);
+		if (move == 'b') bombX = 9001;
+		return move;
+	}
 	int highScore = -1;
 	int highX = -1;
 	int highY = -1;
@@ -516,11 +522,12 @@ char World::bomb(){
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i, j) == 1){
+				int kabooms = bombVal(i, j);
 				printf("checking at %d %d\n",i,j);
-				bombCache[i][j] = bombVal(i ,j);
-				if(highScore < bombCache[i][j]){
+				printf("value: %d\n", kabooms);
+				if(highScore < kabooms){
 					printf("getting better\n");
-					highScore = bombCache[i][j];
+					highScore = kabooms;
 					highX = i;
 					highY = j;
 				}
@@ -528,7 +535,9 @@ char World::bomb(){
 		}
 	}
 	printf("bomb at %d %d with %d \n",highX, highY, highScore);
-	return 0;
+	bombX = highX;
+	bombY = highY;
+	return aStar(highX, highY, true);
 }
 
 int World::bombVal(int i,int j){
@@ -544,14 +553,15 @@ int World::bombVal(int i,int j){
 	closed.push_back(current);
 	open.push(current);
 	while (!open.empty()) {
+		current = open.front();
 		open.pop();
 		for (int k = 0; k < 4; ++k) {
 			int newX = current.x + forwardX[k];
 			int newY = current.y + forwardY[k];
 			char on = getMap(newX, newY);
-			if ( getAccess(newX, newY) > getAccess(current.x, current.y) || 
-				 (getAccess(newX, newY) == getAccess(current.x, current.y) && 
-					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' ) ) ){ 
+			if (getAccess(newX, newY) > getAccess(current.x, current.y)
+				|| (getAccess(newX, newY) == getAccess(current.x, current.y) && 
+					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' || on == 'd'))){ 
 				Coord nextNode(newX, newY);
 				bool found = false;
 				for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
@@ -581,15 +591,9 @@ int World::bombVal(int i,int j){
 		}
 	}
 	if (goldAccess == 0) {
-		return 100;
-	} else if ( toolsFound > 1 ) {
-		return 99;
-	} else if ( toolsCloser > 1 ) {
-		return 10;
-	} else if ( reduced > 1 ){
-		return 1;
+		return 9001;
 	} else {
-		return 0;
+		return toolsFound * 100 + toolsCloser * 10 + reduced;
 	}
 }
 
