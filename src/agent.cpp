@@ -108,6 +108,7 @@ class World {
 	int direction; // 0 = north, 1 = east, 2 = south, 3 = west
 	char map[world_size][world_size];
 	char access[world_size][world_size]; // -1 = cannot access, x > 0 = can access with x # of bombs
+	int bombCache[world_size][world_size];
 	bool boat;
 	int seenXMin, seenXMax, seenYMin, seenYMax; // rectangular bounds of visible area in cartesian coordinates
 	int aStarDestX, aStarDestY; // last aStar destination
@@ -125,6 +126,7 @@ public:
 	char explore();
 	char findInterest();
 	char bomb();
+	int bombVal(int i, int j);
 	char findTile(char target);
 	void print() const;
 	
@@ -177,6 +179,7 @@ World::World() {
 		for (int j = 0; j < world_size; ++j) {
 			map[i][j] = '?';
 			access[i][j] = -1;
+			bombCache[i][j]= -1;
 		}
 	}
 }
@@ -505,15 +508,82 @@ char World::findInterest() {
 }
 
 char World::bomb(){
+	int highScore = -1;
+	int highX = -1;
+	int highY = -1;
+
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
-			if (getMap(i,j) == 'T' || getMap(i,j) == '*'){
-				return 1;
+			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && access[i + world_center][j + world_center] == 1){
+				printf("checking at %d %d\n",i,j);
+				bombCache[i][j] = bombVal(i + world_center,j + world_center);
+				if(highScore < bombCache[i][j]){
+					highScore = bombCache[i][j];
+					highX = i;
+					highY = j;
+				}
 			}
 		}
 	}
+	printf("bomb at %d %d with %d \n",highX, highY, highScore);
 	return 0;
 }
+
+int World::bombVal(int i,int j){
+	std::vector<Coord> closed;
+	std::queue<Coord> open;
+	
+	int bombAccess = access[i][j];
+	int toolsFound = 0;
+	int toolsCloser = 0;
+	int goldAccess = -1;
+
+	Coord current(i, j);
+	closed.push_back(current);
+	open.push(current);
+	while (!open.empty()) {
+		open.pop();
+		for (int k = 0; k < 4; ++k) {
+			int newX = current.x + forwardX[k];
+			int newY = current.y + forwardY[k];
+			if ( access[newX][newY] < bombAccess || (getMap(newX, newY) == 'T' && hasAxe()) || access[newX][newY] == -1 ) continue;
+
+			if ( getMap(newX, newY) == 'a'  || getMap(newX, newY) == 'd' || getMap(newX, newY) == 'g' ) {
+				if ( access[newX][newY] == 1 ){
+					toolsFound++;
+				} else {
+					toolsCloser++;
+				}
+				if ( getMap(newX, newY) == 'g' ) goldAccess = access[newX][newY] - 1;
+			}
+			Coord nextNode(newX, newY);
+			bool found = false;
+			for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
+				if (nextNode == *iter) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				closed.push_back(nextNode);
+				open.push(nextNode);
+			}
+		}
+	}
+	if (goldAccess == 0) {
+		return 100;
+	} else if ( toolsFound > 1 ) {
+		return 99;
+	} else if ( toolsCloser > 1 ) {
+		return 10;
+	} else if ( closed.size() > 1 ){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+
 
 char World::findTile(char target) {
 	for (int j = seenYMax; j >= seenYMin; --j) {
