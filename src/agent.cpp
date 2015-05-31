@@ -133,7 +133,7 @@ public:
 	char getFront() const { return map[posX + forwardX[direction] + world_center][posY + forwardY[direction] + world_center]; }
 	void clearFront() { map[posX + forwardX[direction] + world_center][posY + forwardY[direction] + world_center] = ' '; }
 	char getInDirection(int angle) const { return map[posX + forwardX[(direction + angle) % 4] + world_center][posY + forwardY[(direction + angle) % 4] + world_center]; }
-	
+		
 	int getPositionX() const { return posX; }
 	int getPositionY() const { return posY; }
 	int getVisibleWidth() const { return seenXMax - seenXMin; }
@@ -141,6 +141,7 @@ public:
 	
 	char getMap(int x, int y) const { return map[x + world_center][y + world_center]; }
 	bool canAccess(int x, int y, int kabooms) const { return access[x + world_center][y + world_center] != -1 && access[x + world_center][y + world_center] <= kabooms; }
+	int getAccess(int x, int y) const { return access[x + world_center][y + world_center]; }
 	bool isExplored(int x, int y) const {
 		for (int i = x + world_center - 2; i <= x + world_center + 2; ++i) {
 			for (int j = y + world_center - 2; j <= y + world_center + 2; ++j) {
@@ -514,10 +515,11 @@ char World::bomb(){
 
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
-			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && access[i + world_center][j + world_center] == 1){
+			if ((getMap(i,j) == 'T' || getMap(i,j) == '*') && getAccess(i, j) == 1){
 				printf("checking at %d %d\n",i,j);
-				bombCache[i][j] = bombVal(i + world_center,j + world_center);
+				bombCache[i][j] = bombVal(i ,j);
 				if(highScore < bombCache[i][j]){
+					printf("getting better\n");
 					highScore = bombCache[i][j];
 					highX = i;
 					highY = j;
@@ -533,7 +535,6 @@ int World::bombVal(int i,int j){
 	std::vector<Coord> closed;
 	std::queue<Coord> open;
 	
-	int bombAccess = access[i][j];
 	int toolsFound = 0;
 	int toolsCloser = 0;
 	int goldAccess = -1;
@@ -542,20 +543,13 @@ int World::bombVal(int i,int j){
 	closed.push_back(current);
 	open.push(current);
 	while (!open.empty()) {
+		printf("size : %d\n",open.size());
 		open.pop();
 		for (int k = 0; k < 4; ++k) {
 			int newX = current.x + forwardX[k];
 			int newY = current.y + forwardY[k];
-			if ( access[newX][newY] < bombAccess || (getMap(newX, newY) == 'T' && hasAxe()) || access[newX][newY] == -1 ) continue;
+			if ( getAccess(newX, newY) < getAccess(current.x, current.y) || (getMap(newX, newY) == 'T' && hasAxe()) || getAccess(newX, newY) == -1 ) continue;
 
-			if ( getMap(newX, newY) == 'a'  || getMap(newX, newY) == 'd' || getMap(newX, newY) == 'g' ) {
-				if ( access[newX][newY] == 1 ){
-					toolsFound++;
-				} else {
-					toolsCloser++;
-				}
-				if ( getMap(newX, newY) == 'g' ) goldAccess = access[newX][newY] - 1;
-			}
 			Coord nextNode(newX, newY);
 			bool found = false;
 			for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
@@ -565,6 +559,18 @@ int World::bombVal(int i,int j){
 				}
 			}
 			if (!found) {
+				if ( getMap(newX, newY) == 'a'  || getMap(newX, newY) == 'd' || getMap(newX, newY) == 'g' ) {
+					printf("tool!\n");
+					if ( getAccess(newX, newY) == 1 ){
+						toolsFound++;
+					} else {
+						toolsCloser++;
+					}
+					if ( getMap(newX, newY) == 'g' ){
+						printf("gold at %d %d\n",newX,newY);
+						goldAccess = getAccess(newX, newY) - 1;
+					}
+				}
 				closed.push_back(nextNode);
 				open.push(nextNode);
 			}
