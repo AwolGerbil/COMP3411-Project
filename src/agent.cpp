@@ -325,13 +325,13 @@ void World::move(char command) {
 	}
 }
 
-// subclass for aStar
+// Subclass for aStar
 class aStarNode {
 public:
-	int posX, posY, direction, destX, destY; // coordinates/direction
-	std::vector<char> path; // sequence of moves to reach this point
+	int posX, posY, direction, destX, destY; // Coordinates/direction
+	std::vector<char> path; // Sequence of moves to reach this point
 	
-	// base constructor from scratch
+	// Base constructor from scratch
 	aStarNode(const int posX, const int posY, const int direction, const int destX, const int destY, const std::vector<char> &path = std::vector<char>()) {
 		this->posX = posX;
 		this->posY = posY;
@@ -341,7 +341,7 @@ public:
 		this->path = path;
 	}
 	
-	// constructor which emulates move
+	// Constructor which emulates move
 	aStarNode(const aStarNode &old, const World &world, const char move) {
 		posX = old.posX;
 		posY = old.posY;
@@ -367,7 +367,7 @@ public:
 		path.push_back(move);
 	}
 	
-	// estimates cost to destination
+	// Estimates cost to destination
 	int estimate() const {
 		int dX = destX - posX;
 		int dY = destY - posY;
@@ -380,7 +380,7 @@ public:
 		}
 	}
 	
-	// overrides
+	// Overrides
 	bool operator==(const aStarNode &other) const {
 		return (posX == other.posX && posY == other.posY && direction == other.direction);
 	}
