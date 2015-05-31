@@ -538,41 +538,45 @@ int World::bombVal(int i,int j){
 	int toolsFound = 0;
 	int toolsCloser = 0;
 	int goldAccess = -1;
+	int reduced = 0;
 
 	Coord current(i, j);
 	closed.push_back(current);
 	open.push(current);
 	while (!open.empty()) {
-		printf("size : %d\n",open.size());
 		open.pop();
 		for (int k = 0; k < 4; ++k) {
 			int newX = current.x + forwardX[k];
 			int newY = current.y + forwardY[k];
-			if ( getAccess(newX, newY) < getAccess(current.x, current.y) || (getMap(newX, newY) == 'T' && hasAxe()) || getAccess(newX, newY) == -1 ) continue;
-
-			Coord nextNode(newX, newY);
-			bool found = false;
-			for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
-				if (nextNode == *iter) {
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				if ( getMap(newX, newY) == 'a'  || getMap(newX, newY) == 'd' || getMap(newX, newY) == 'g' ) {
-					printf("tool!\n");
-					if ( getAccess(newX, newY) == 1 ){
-						toolsFound++;
-					} else {
-						toolsCloser++;
-					}
-					if ( getMap(newX, newY) == 'g' ){
-						printf("gold at %d %d\n",newX,newY);
-						goldAccess = getAccess(newX, newY) - 1;
+			char on = getMap(newX, newY);
+			if ( getAccess(newX, newY) > getAccess(current.x, current.y) || 
+				 (getAccess(newX, newY) == getAccess(current.x, current.y) && 
+					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' ) ) ){ 
+				Coord nextNode(newX, newY);
+				bool found = false;
+				for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
+					if (nextNode == *iter) {
+						found = true;
+						break;
 					}
 				}
-				closed.push_back(nextNode);
-				open.push(nextNode);
+				if (!found) {
+					++reduced;
+					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B') {
+						printf("tool!\n");
+						if ( getAccess(newX, newY) == 1 ){
+							toolsFound++;
+						} else {
+							toolsCloser++;
+						}
+						if ( on == 'g' ){
+							printf("gold at %d %d\n",newX,newY);
+							goldAccess = getAccess(newX, newY) - 1;
+						}
+					}
+					closed.push_back(nextNode);
+					open.push(nextNode);
+				}
 			}
 		}
 	}
@@ -582,7 +586,7 @@ int World::bombVal(int i,int j){
 		return 99;
 	} else if ( toolsCloser > 1 ) {
 		return 10;
-	} else if ( closed.size() > 1 ){
+	} else if ( reduced > 1 ){
 		return 1;
 	} else {
 		return 0;
