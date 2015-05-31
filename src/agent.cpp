@@ -155,8 +155,9 @@ public:
 	
 	void setBoat(bool boat) { this->boat = boat; }
 	
-	bool hasGold() const { return inventory.getGold(); }
 	bool hasAxe() const { return inventory.getAxe(); }
+	bool hasGold() const { return inventory.getGold(); }
+	int getKaboomCount() const { return inventory.getKaboomCount(); }
 	bool onBoat() const { return boat; }
 };
 
@@ -390,13 +391,19 @@ public:
 char World::aStar(int destX, int destY, bool kaboom) {
 	// Use cached path if possible
 	printf("aStar %d %d\n", destX, destY);
+	if (posX == destX && posY == destY) {
+		return 0;
+	}
+
 	if (destX == aStarDestX && destY == aStarDestY) {
 		for (std::vector<char>::iterator iter = aStarCache.begin(); iter != aStarCache.end(); ++iter) {
 			putchar(*iter);
 		}
-		char move = aStarCache.back();
-		aStarCache.pop_back();
-		return move;
+		if (!aStarCache.empty()) {
+			char move = aStarCache.back();
+			aStarCache.pop_back();
+			return move;
+		}
 	}
 		
 	if (!canAccess(destX, destY, kaboom ? 1 : 0)) {
@@ -417,7 +424,9 @@ char World::aStar(int destX, int destY, bool kaboom) {
 			
 			aStarDestX = destX;
 			aStarDestY = destY;
-			if (kaboom) current.path.push_back('b');
+			if (kaboom && getAccess(current.posX + forwardX[current.direction], current.posY + forwardY[current.direction]) > 0) {
+				current.path.push_back('b');
+			}
 			char move = current.path.front();
 			std::reverse(current.path.begin(), current.path.end());
 			current.path.pop_back();
@@ -537,7 +546,9 @@ char World::bomb(){
 	printf("bomb at %d %d with %d \n",highX, highY, highScore);
 	bombX = highX;
 	bombY = highY;
-	return aStar(highX, highY, true);
+	char move = aStar(highX, highY, true);
+	if (move == 'b') bombX = 9001;
+	return move;
 }
 
 int World::bombVal(int i,int j){
@@ -603,7 +614,8 @@ char World::findTile(char target) {
 	for (int j = seenYMax; j >= seenYMin; --j) {
 		for (int i = seenXMin; i <= seenXMax; ++i) {
 			if (getMap(i,j) == target){
-				return aStar(i, j);
+				char move = aStar(i, j);
+				if (move) return move;
 			}
 		}
 	}
@@ -649,25 +661,29 @@ void World::print() const {
 
 char getAction(World &world) {
 	world.print();
-	printf("%d %d", world.getPositionX(), world.getPositionY());
+	printf("%d %d %d", world.getPositionX(), world.getPositionY(), world.getKaboomCount());
 	
 	// Plan:
 	// If gold can be accessed by walking/boat, then access it and return gold
 	// Otherwise, explore via walking/boat, chop trees if possible
 	char move = 0;
 	if (world.hasGold()) {
+		printf("RETURN\n");
 		move = world.aStar(0,0);
 	}
 	if (move == 0) {
+		printf("INTEREST\n");
 		move = world.findInterest();
 	}
 	if (move == 0){
+		printf("EXPLORE\n");
 		move = world.explore();
 	}
 	// If completely explored, then floodfill map with lowest number of bombs required to access a coordinate
 	// TODO
 	// Attempt to use bombs to access gold/tools in most cost effective manner
 	if (move == 0){
+		printf("BOMB\n");
 		move = world.bomb();
 		//BOOOOOOOOOOOOOOOOOMB
 	}
