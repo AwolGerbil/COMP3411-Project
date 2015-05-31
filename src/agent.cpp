@@ -2,8 +2,26 @@
  *  agent.cpp
  *  UNSW Session 1, 2015
  *  Gabriel Low & Yilser Kabaran
-*/
-
+ */
+ 
+/*
+ * Firstly, created an internal world state so that we can perform other operations and cache results.
+ *
+ *Primary Functions:
+ * - Access evaluation function, essentially a dijkstra to determine minimum number of bombs required to access a coordinate.
+ * - A* for pathing between coordinates, utilising cached access results and the internal map
+ * - BFS for exploration, to select which coordinate has unseen regions around it
+ * - Bomb evaluation function, to determine where a bomb is optimally placed
+ *
+ *Data Structures:
+ * - Classes for World state, as well as nodes within the A*, Dijkstra and BFS
+ * - C++ std::vector, std::queue, std::priority_queue, for iterative A*, Dijkstra and BFS
+ *
+ *Instead of exploring completely and generating a complete path to the gold and back, we segment our solution into 
+ *several parts, making it easier for our group to work on several components simultaneously.  Any decisions which were 
+ *made prioritised minimising complexity by increasing modularity, and maximising a "results / time" ratio.
+ */
+ 
 #include <string.h>
 #include <cstdio>
 #include <cstdlib>
