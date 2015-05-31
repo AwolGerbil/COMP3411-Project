@@ -602,9 +602,9 @@ int World::bombVal(int i,int j){
 		}
 	}
 	if (goldAccess == 0) {
-		return 9001;
+		return 2147483647;
 	} else {
-		return toolsFound * 100 + toolsCloser * 10 + reduced;
+		return toolsFound * 1000 + toolsCloser * 100 + reduced;
 	}
 }
 
@@ -619,7 +619,7 @@ char World::findTile(char target) {
 			}
 		}
 	}
-	return move;
+	return 0;
 }
 
 void World::print() const {
