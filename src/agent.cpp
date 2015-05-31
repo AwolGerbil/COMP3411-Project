@@ -297,22 +297,24 @@ void World::evalAccess() {
 	}
 }
 
+// Simulates move command in world
 void World::move(char command) {
 	if (command == 'F' || command == 'f') { // Step forward
-		if (getFront() == 'a') {
+		if (getFront() == 'a') { // Picked up axe
 			inventory.setAxe(true);
 			setBoat(false);
-		} else if (getFront() == 'd') {
+		} else if (getFront() == 'd') { // Picked up dynamite
 			inventory.addKaboom();
 			setBoat(false);
-		} else if (getFront() == 'g') {
+		} else if (getFront() == 'g') { // Picked up gold
 			inventory.setGold(true);
 			setBoat(false);
-		} else if (getFront() == 'B') {
+		} else if (getFront() == 'B') { // Picked up boat :P
 			setBoat(true);
-		} else if (getFront() == ' ') {
+		} else if (getFront() == ' ') { // Normal land
 			setBoat(false);
 		}
+		// Move player
 		posX = posX + forwardX[direction];
 		posY = posY + forwardY[direction];
 	} else if (command == 'L' || command == 'l') { // Turn left
@@ -320,7 +322,7 @@ void World::move(char command) {
 	} else if (command == 'R' || command == 'r') { // Turn right
 		direction = (direction + 1) % 4;
 	} else if (command == 'C' || command == 'c') { // Chop
-	} else if (command == 'B' || command == 'b') { // BOOOOOOOOOOM!
+	} else if (command == 'B' || command == 'b') { // KABOOOOOOOOOOM!
 		inventory.useKaboom();
 	}
 }
