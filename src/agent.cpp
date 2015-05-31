@@ -550,13 +550,36 @@ int World::bombVal(int i,int j){
 	while (!open.empty()) {
 		current = open.front();
 		open.pop();
+		if ( getMap(current.x, current.y) == 'a' ){
+			for (int j = seenYMax; j >= seenYMin; --j) {
+				for (int i = seenXMin; i <= seenXMax; ++i) {
+					if (getMap(i,j) == 'T'){
+						Coord tree(i, j);
+						bool found = false;
+						for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
+							if (tree == *iter) {
+								found = true;
+								break;
+							}
+						}
+						if(!found){
+							++reduced;
+							closed.push_back(tree);
+							open.push(tree);
+						}
+					}
+				}
+			}
+		}
 		for (int k = 0; k < 4; ++k) {
 			int newX = current.x + forwardX[k];
 			int newY = current.y + forwardY[k];
 			char on = getMap(newX, newY);
+			char from = getMap(current.x, current.y);
 			if (getAccess(newX, newY) > getAccess(current.x, current.y)
 				|| (getAccess(newX, newY) == getAccess(current.x, current.y) && 
-					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' || on == 'd'))){ 
+					((on == 'T' && hasAxe()) || on == ' ' || on == 'B' || on == 'a' || on == 'g' || on == 'd'))|| 
+					(on == '~' && (from == 'B' || from == '~')) ){ 
 				Coord nextNode(newX, newY);
 				bool found = false;
 				for (std::vector<Coord>::iterator iter = closed.begin(); iter != closed.end(); ++iter) {
@@ -567,7 +590,7 @@ int World::bombVal(int i,int j){
 				}
 				if (!found) {
 					++reduced;
-					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B') {
+					if ( on == 'a'  || on == 'd' || on == 'g' || on == 'B' ) {
 						if ( getAccess(newX, newY) == 1 ){
 							toolsFound++;
 						} else {
@@ -663,7 +686,7 @@ char getAction(World &world) {
 	}
 	// TODO
 	//getchar();
-	usleep(100);
+	//usleep(100);
 	//printf("gonna: %c\n",move);
 	world.move(move);
 	return move;
